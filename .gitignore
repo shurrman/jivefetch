@@ -1,0 +1,64 @@
+binary/*.*
+builds/*
+**/*/builds
+*.retry
+hosts.ini
+test.yml
+linux*database*.zip
+msg-db-installer.tar.gz
+composer.phar
+lk.tar.gz
+msg-wcs.tar.gz
+*wcs*.tar.gz
+rule_events*.tgz
+acapi*.tgz
+*.war
+*.jar
+**/*/__pycache__
+.venv/
+**/.venv/
+.terraform*
+terraform.tfstate*
+*.tar.gz
+*.zip
+
+# ansible-vault password files
+.ansible.vault
+vault_pass*
+*.vault_pass
+.vault_password*
+
+# AI-agent config: общие файлы (.claude/AGENT.md, settings.json) идут в git;
+# локальные — нет
+.claude/settings.local.json
+.claude/worktrees/
+#
+
+# JiveFetch: frontend, Rust and Tauri build output
+node_modules/
+dist/
+.vite/
+target/
+src-tauri/target/
+*.log
+.DS_Store
+
+# Local application state and generated architecture indexes
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+graphify-out/
+
+# Authentication material and decrypted cookie exports
+cookies.txt
+*.cookies.txt
+*.cookies.sqlite
+secrets/
+
+# local credentials and generated delivery-only files
+.env
+**/.env
+*.passwd.bak
+domrf/ADM-1682/instr.pdf
