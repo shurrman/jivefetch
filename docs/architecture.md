@@ -19,9 +19,9 @@ The design follows four boundaries:
 The domain and application layers must compile and test without a webview or real
 download engines.
 
-Foundation version `0.0.1` intentionally keeps the initial Rust/SQLite queue inside
-`src-tauri`; the crate split below is performed with process supervision so the
-boundary is justified by real interfaces rather than empty folders.
+Version `0.1.0` keeps explicit `model`, `storage`, `scheduler`, `engine`, and
+`process_supervisor` modules inside `src-tauri`. A later crate split will follow these
+now-tested interfaces instead of creating empty boundaries.
 
 ## 2. Target component model
 

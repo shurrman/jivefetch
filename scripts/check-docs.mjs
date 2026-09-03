@@ -8,16 +8,23 @@ const rootSets = [
   ["AGENTS.en.md", "AGENTS.md", "AGENTS.zh-CN.md"],
 ];
 
-const docs = readdirSync("docs").filter((name) => name.endsWith(".md"));
+const collectMarkdown = (directory) =>
+  readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return collectMarkdown(path);
+    return entry.isFile() && entry.name.endsWith(".md") ? [path] : [];
+  });
+
+const docs = collectMarkdown("docs");
 const englishDocs = docs.filter(
   (name) => !name.endsWith(".ru.md") && !name.endsWith(".zh-CN.md"),
 );
 const docSets = englishDocs.map((name) => {
   const stem = name.slice(0, -3);
   return [
-    join("docs", name),
-    join("docs", `${stem}.ru.md`),
-    join("docs", `${stem}.zh-CN.md`),
+    name,
+    `${stem}.ru.md`,
+    `${stem}.zh-CN.md`,
   ];
 });
 

@@ -9,8 +9,8 @@
 ### Deliverables
 
 Tauri 2 + React/TS + Rust、固定 lockfile/toolchain、format/lint/test/link/secret check、
-原生 CI 骨架和 ADR。`0.0.1` 已有可运行 macOS UI、SQLite 队列、三种语言和 unit/build
-检查；native CI 和 crate 拆分仍待完成。
+原生 CI 骨架和 ADR。`0.1.0` 已有可运行 macOS UI、SQLite 队列、三种语言、Apache-2.0、
+unit/build 检查和 native CI matrix；matrix 首次 remote run、ADR 和 crate 拆分仍待完成。
 
 ### Exit criteria
 
@@ -34,6 +34,9 @@ pagination。Exit：property test、重复命令安全、migration fixture、10k
 平台 supervisor、child/grandchild helper、graceful/forced stop、scheduler slot/aging/lock、
 全部 control。Exit：完整 owned tree 消失，同名无关进程存活，竞态收敛，崩溃边界可恢复。
 
+现已实现 process-group/Job-Object supervisor、bounded output、双 scheduler slot、durable control
+和 unrelated-process test；priority、aging、output lock 与完整 crash matrix 仍待完成。
+
 ### Exit criteria
 
 Owned tree 全部消失、无关进程存活，竞态和 crash recovery 收敛。
@@ -45,6 +48,9 @@ Owned tree 全部消失、无关进程存活，竞态和 crash recovery 收敛�
 Verified engine registry、probe/normalized format、format compiler、intake/picker、一次真实
 queued download、FFmpeg capability error。Exit：fixture suite、clean-machine 合法测试下载、
 无 shell 字符串。
+
+现已实现 system engine discovery、typed real plan、progress parser、output verification、UI
+progress 和 loopback smoke；metadata probe、format selection 与 ffprobe capability 仍待完成。
 
 ### Exit criteria
 

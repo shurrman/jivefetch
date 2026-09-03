@@ -4,16 +4,16 @@
 
 > Your media. Your queue. Your rules.
 
-JiveFetch is a planned cross-platform desktop manager for lawful, local media
-downloads. It will combine a Tauri 2 shell, a Rust scheduling and process-control
+JiveFetch is a local-first cross-platform desktop manager for lawful media
+downloads. It combines a Tauri 2 shell, a Rust scheduling and process-control
 core, and a React/TypeScript interface with `yt-dlp`, `ffmpeg`/`ffprobe`, and
 optionally `aria2` as managed external engines.
 
-Version `0.0.1` is a working macOS foundation build. It provides a Tauri 2 desktop
+Version `0.1.0` is a working initial preview. It provides a Tauri 2 desktop
 shell, a React interface in English, Russian, and Simplified Chinese, and a Rust-owned
-SQLite queue. Users can add validated HTTP(S) URLs and persistently Pause, Resume,
-Stop, or Remove queue entries. It deliberately does not claim to download media yet;
-`yt-dlp`/FFmpeg execution is the next vertical slice.
+SQLite queue. Users can add validated HTTP(S) URLs, download through locally installed
+`yt-dlp` and FFmpeg, see progress, and Pause, Resume, Stop, or Remove queue entries.
+Interrupted work is reconciled on restart and can be resumed from partial files.
 
 ## Product goals
 
@@ -71,14 +71,15 @@ See [Architecture](docs/architecture.md) and
 .
 ├── src/                         # React/TypeScript UI
 ├── src-tauri/                   # Tauri shell and Rust/SQLite queue commands
+├── .github/workflows/           # native Windows/macOS/Linux source verification
 ├── docs/                        # requirements, architecture and roadmap
 ├── package.json                 # pinned frontend/Tauri CLI dependencies
 └── README.*.md                  # localized project entry points
 ```
 
-The workspace will be split into dedicated Rust crates when process supervision and
-engine adapters are introduced; the target boundaries remain documented in
-[Architecture](docs/architecture.md).
+The first vertical slice keeps the scheduler, storage, engine adapter, and process
+supervisor as explicit Rust modules in `src-tauri`; the target crate boundaries remain
+documented in [Architecture](docs/architecture.md).
 
 ## Documentation
 
@@ -87,20 +88,24 @@ engine adapters are introduced; the target boundaries remain documented in
 - [Task lifecycle and recovery](docs/task-lifecycle.md)
 - [Security and authentication](docs/security.md)
 - [Cross-platform packaging](docs/packaging.md)
+- [Licensing and third-party engines](docs/licensing.md)
 - [Roadmap](docs/roadmap.md)
 - [Research references](docs/research-references.md)
 - [Localization policy](docs/localization.md)
 - [Change log](CHANGES.md)
+- [v0.1.0 release notes](docs/releases/v0.1.0.md)
 - [Project memory](MEMORY.md)
 
 ## Run locally on macOS
 
-Prerequisites currently verified on macOS: Node.js 22+, npm 10+, and Rust 1.88+.
+Prerequisites currently verified on macOS: Node.js 22+, npm 10+, Rust 1.88+,
+`yt-dlp`, and FFmpeg.
 
 ```bash
 npm install
 npm run build
 cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --test real_engine_smoke -- --ignored
 npm run tauri dev
 ```
 
@@ -108,15 +113,17 @@ The queue database is created in the platform application-data directory, not in
 the repository. English is the first-run default; an explicit language choice is
 remembered locally.
 
-The next implementation step is the fake-engine/process-supervision phase followed by
-a real `yt-dlp` probe and single-download vertical slice.
+The ignored smoke test creates a tiny media fixture with FFmpeg, serves it over a
+loopback-only HTTP listener, downloads it through the real Rust scheduler and
+`yt-dlp`, and verifies the output path. It requires no public media or external network.
 
 ## Identity
 
 - Product name: **JiveFetch**
 - Repository slug: `jivefetch`
+- Private repository: [github.com/shurrman/jivefetch](https://github.com/shurrman/jivefetch)
 - Application identifier: `top.jivejournal.jivefetch`
 - Intended site: `fetch.jivejournal.top`
 
-Licensing is intentionally undecided until the distribution model and bundled
-binary obligations have been reviewed.
+- Source license: [Apache-2.0](LICENSE)
+- Current engine model: validated system executables; no engine binaries are redistributed

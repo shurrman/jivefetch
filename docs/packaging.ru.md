@@ -57,9 +57,9 @@ rollback при failure. Не ставить вне compatibility range.
 
 ## 7. Licensing gate
 
-До public build: inventory exact source/binary licenses; различать license исходников и
-standalone bundles; записать FFmpeg configure; включить notices/source obligations;
-проверить совместимость лицензии JiveFetch.
+Код JiveFetch использует Apache-2.0. Версия `0.1.0` вызывает только проверенные
+системные executables и не распространяет движки. Bundled/managed delivery требует
+аудита точного бинарника по документу [Лицензирование](licensing.ru.md).
 
 ## 8. Reproducibility и supply chain
 
@@ -67,6 +67,10 @@ Pin toolchains/lockfiles/actions SHA,
 минимальные CI permissions, SBOM, checksums, provenance; signing secrets вне repo/logs.
 
 ## 9. Release gates
+
+Private preview можно собирать в native CI до production signing только с пометкой
+pre-release, явным указанием unsigned/unnotarized artifacts и без заявления production
+support. Stable-релиз обязан пройти все gate ниже.
 
 Frontend/Rust checks; migration/crash suite; owned process tree; cookie secret tests;
 engine discovery/rollback; installer lifecycle; signing/notarization; SBOM/licenses;

@@ -8,10 +8,11 @@ JiveFetch — локальный кроссплатформенный desktop-м
 Целевой стек: Tauri 2, Rust, React/TypeScript, `yt-dlp`, `ffmpeg`/`ffprobe` и,
 опционально, `aria2`.
 
-Версия `0.0.1` уже запускается на macOS: Tauri-оболочка, интерфейс на английском,
-русском и упрощённом китайском и очередь SQLite под управлением Rust. Можно добавить
-проверенную HTTP(S)-ссылку и устойчиво выполнить Pause, Resume, Stop и Remove. Версия
-честно не объявляет загрузку начавшейся: интеграция `yt-dlp`/FFmpeg — следующий этап.
+Версия `0.1.0` — рабочий первый preview: Tauri-оболочка, интерфейс
+на английском, русском и упрощённом китайском и очередь SQLite под управлением Rust.
+Можно добавить проверенную HTTP(S)-ссылку, загрузить через локальные `yt-dlp` и FFmpeg,
+видеть прогресс и выполнить Pause, Resume, Stop или Remove. После перезапуска
+прерванные задачи согласуются с SQLite и могут продолжиться с partial-файлов.
 
 ## Цели
 
@@ -55,14 +56,15 @@ Rust-scheduler может резервировать слоты и менять 
 
 ```text
 src/              React/TypeScript UI и три словаря
-src-tauri/        Tauri shell и Rust/SQLite-команды очереди
+src-tauri/        Tauri shell, scheduler, supervisor и Rust/SQLite
+.github/workflows/ native-проверки Windows/macOS/Linux
 docs/             требования, архитектура и roadmap в EN/RU/简体中文
 package.json      frontend и Tauri CLI
 README.*.md       локализованные точки входа
 ```
 
-Выделение Rust crates для core/storage/process/engines произойдёт при добавлении
-process supervisor и движков.
+Первый срез держит scheduler, storage, engine adapter и process supervisor отдельными
+Rust-модулями в `src-tauri`; целевые границы crates описаны в архитектуре.
 
 ## Документация
 
@@ -71,34 +73,40 @@ process supervisor и движков.
 - [Жизненный цикл задач](docs/task-lifecycle.ru.md)
 - [Безопасность](docs/security.ru.md)
 - [Упаковка](docs/packaging.ru.md)
+- [Лицензирование и сторонние движки](docs/licensing.ru.md)
 - [Roadmap](docs/roadmap.ru.md)
 - [Исследовательские ориентиры](docs/research-references.ru.md)
 - [Локализация](docs/localization.ru.md)
 - [Изменения](CHANGES.ru.md)
+- [Примечания к выпуску v0.1.0](docs/releases/v0.1.0.ru.md)
 - [Память проекта](MEMORY.ru.md)
 
 ## Локальный запуск на macOS
 
-Проверенные требования: Node.js 22+, npm 10+, Rust 1.88+.
+Проверенные требования: Node.js 22+, npm 10+, Rust 1.88+, `yt-dlp` и FFmpeg.
 
 ```bash
 npm install
 npm run build
 cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --test real_engine_smoke -- --ignored
 npm run tauri dev
 ```
 
 База создаётся в системном каталоге данных приложения. При первом запуске язык —
 английский; явный выбор пользователя сохраняется локально.
 
-Следующий этап: fake engine и владение деревом процессов, затем реальный `yt-dlp`
-probe и одна сквозная загрузка.
+Игнорируемый smoke-тест создаёт короткий fixture через FFmpeg, раздаёт его только на
+loopback, загружает реальным Rust-scheduler и `yt-dlp`, затем проверяет выходной путь.
+Публичный контент и внешняя сеть для теста не нужны.
 
 ## Идентичность
 
 - Продукт: **JiveFetch**
 - Репозиторий: `jivefetch`
+- Приватный репозиторий: [github.com/shurrman/jivefetch](https://github.com/shurrman/jivefetch)
 - Application ID: `top.jivejournal.jivefetch`
 - Планируемый сайт: `fetch.jivejournal.top`
 
-Лицензия будет выбрана после проверки обязательств распространяемых бинарников.
+- Лицензия исходного кода: [Apache-2.0](LICENSE)
+- Текущая модель движков: проверенные системные executables без их распространения

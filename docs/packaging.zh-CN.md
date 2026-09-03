@@ -55,8 +55,8 @@ long/non-ASCII path、杀毒延迟和安全卸载测试。
 
 ## 7. 许可证 gate
 
-公开前必须审查精确 source/binary license，区分源码与 standalone bundle 义务，记录 FFmpeg
-configure，包含 notice/source obligation，并确认 JiveFetch license 兼容。
+JiveFetch 源代码采用 Apache-2.0。`0.1.0` 只调用验证过的系统 executable，不再分发引擎。
+Bundled/managed 引擎交付仍需依据[许可文档](licensing.zh-CN.md)审核准确二进制文件。
 
 ## 8. 可复现性与供应链
 
@@ -64,6 +64,10 @@ configure，包含 notice/source obligation，并确认 JiveFetch license 兼容
 lockfile/Actions SHA，最小 CI 权限，生成 SBOM、checksum 和 provenance，签名秘密不进仓库。
 
 ## 9. 发布 gate
+
+在 production signing 就绪前，可以通过 native CI 构建私有 preview，但必须标记为
+pre-release，明确说明 artifact 未签名/未 notarize，且不得宣称 production support。
+Stable release 必须通过以下全部 gate。
 
 每个 target 必须通过 frontend/Rust、migration/crash、owned process tree、Cookie secret、
 engine rollback、installer lifecycle、signature/notarization、SBOM/license 和 clean-machine

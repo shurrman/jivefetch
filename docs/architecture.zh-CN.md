@@ -11,8 +11,9 @@ JiveFetch 是长时间运行且可能失败的外部进程之上的桌面 UI。�
 管理 scheduler、恢复、探测、带宽和命令；Infrastructure 包含 SQLite、文件系统、
 keychain、时钟和平台进程；Adapters 提供 Tauri IPC/events 与 engine 集成。
 
-Domain/Application 必须能脱离 webview 和真实下载引擎测试。Foundation `0.0.1`
-暂把 Rust/SQLite 队列保留在 `src-tauri`；等 process supervision 形成真实接口再拆分。
+Domain/Application 必须能脱离 webview 和真实下载引擎测试。`0.1.0` 在 `src-tauri`
+内保留明确的 `model`、`storage`、`scheduler`、`engine` 和 `process_supervisor` 模块；
+后续 crate 拆分将遵循这些已测试接口，而不是创建空边界。
 
 ## 2. 目标组件模型
 

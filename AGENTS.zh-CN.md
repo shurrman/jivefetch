@@ -10,7 +10,7 @@
 - `README.md`：仓库概览与已验证命令。
 - `CHANGES.md`：变更、前后指标和已知问题。
 - `MEMORY.md`：长期、无秘密的决定与继续工作的位置。
-- `docs/`：需求、架构、生命周期、安全、打包、路线图、研究和本地化策略。
+- `docs/`：需求、架构、生命周期、安全、打包、许可、路线图、研究和本地化策略。
 
 ## 工作方式
 
@@ -46,8 +46,10 @@ JiveFetch 是本地优先的 Tauri 桌面应用；Rust 拥有队列、持久状�
 - SQLite migration 必须向前安全并有恢复测试。
 - 队列功能必须有状态迁移和崩溃/重启测试；进程测试使用确定性 helper。
 - 只有 Windows、macOS、Linux 原生测试通过后才能宣称打包支持。
+- Release tag 必须与应用和 package 版本一致。在 signing、notarization、sidecar
+  许可证和 release gate 完成前，发布必须标记为 pre-release。
 - MediaHarbor 和 FlowGrab 仅为研究参考；不复制代码、资源、UI 文案或内部结构。
-- 在 remote 配置前仅本地工作，不 push；只有用户要求且验证通过后才 commit。
+- 私有 `origin` 已配置。只有用户明确要求且相关检查通过后，才可以 commit 或 push。
 
 ## 本地化与文档
 

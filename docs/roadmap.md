@@ -21,8 +21,9 @@ an earlier durability, security, or process-ownership gate.
 - Add ADR template and record the selected choices.
 
 Current foundation status: the macOS Tauri shell, React production build, Rust/SQLite
-queue, lockfiles, unit tests, and EN/RU/Simplified Chinese UI/docs are working. Native
-CI, ADRs, and the planned Rust crate split remain before Phase 0 is fully closed.
+queue, lockfiles, unit tests, multilingual UI/docs, Apache-2.0, and a native CI matrix
+are present. The matrix still needs its first remote run; ADRs and the planned Rust
+crate split remain before Phase 0 is fully closed.
 
 ### Exit criteria
 
@@ -59,6 +60,10 @@ CI, ADRs, and the planned Rust crate split remain before Phase 0 is fully closed
   attempts.
 - Implement Pause, Resume, Stop, Retry, and Remove against fake work.
 
+Current slice status: the owned process-group/Job-Object supervisor, bounded output,
+two scheduler slots, durable controls, and an unrelated-process helper test are
+implemented. Priority, aging, output locks, and the full crash-boundary matrix remain.
+
 ### Exit criteria
 
 - Native tests terminate the complete owned tree on every OS.
@@ -76,6 +81,11 @@ CI, ADRs, and the planned Rust crate split remain before Phase 0 is fully closed
 - Build intake, metadata preview, format picker, destination choice, and one real
   queued download with progress.
 - Detect `ffmpeg`/`ffprobe` capabilities and show actionable dependency errors.
+
+Current slice status: system `yt-dlp`/FFmpeg discovery, a typed real download plan,
+progress parsing, output verification, UI progress, and a loopback real-engine smoke
+test are implemented. Metadata probing, format selection, and ffprobe capability
+reporting remain.
 
 ### Exit criteria
 

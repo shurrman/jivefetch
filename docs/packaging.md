@@ -121,7 +121,9 @@ Before any public build:
 - verify that the chosen JiveFetch license is compatible with the distribution model;
 - document update sources and attribution in the application.
 
-No license is selected in this baseline because that review is not yet complete.
+JiveFetch source uses Apache-2.0. Version `0.1.0` only invokes validated system
+executables and does not redistribute engines. Bundled or managed engine delivery
+still requires the exact-binary review in [Licensing](licensing.md).
 
 ## 8. Reproducibility and supply chain
 
@@ -133,6 +135,10 @@ No license is selected in this baseline because that review is not yet complete.
 - Build release candidates in clean native runners and compare expected contents.
 
 ## 9. Release gates
+
+Private preview releases may be built on native CI before production signing is in
+place only when they are marked as pre-release, identify unsigned/unnotarized assets,
+and do not claim production support. Stable releases must satisfy every gate below.
 
 A target artifact is releasable only when:
 

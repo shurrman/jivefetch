@@ -282,6 +282,30 @@ select {
   font-size: 18px;
 }
 
+.status-icon-warning {
+  color: #7b5410;
+  background: #fae8b7;
+}
+
+.engine-versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 7px;
+  color: #486055;
+  font-size: 10px;
+}
+
+.output-folder {
+  margin-top: 10px;
+  padding: 0 4px;
+  overflow: hidden;
+  color: #6b7971;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .queue-section {
   margin-top: 34px;
 }
@@ -383,7 +407,10 @@ select {
   font-weight: 800;
 }
 
-.state-paused {
+.state-paused,
+.state-pausing,
+.state-stopping,
+.state-interrupted {
   color: #715213;
   background: #f8eac3;
 }
@@ -394,16 +421,84 @@ select {
   background: #f6dfdc;
 }
 
+.state-starting,
+.state-downloading,
+.state-postprocessing {
+  color: #245d4b;
+  background: #d9f1e6;
+}
+
 .state-completed {
   color: #2d6540;
   background: #d8efd9;
 }
 
+.task-details,
 .task-url,
 .task-meta {
   display: flex;
   min-width: 0;
   flex-direction: column;
+}
+
+.task-details {
+  gap: 6px;
+}
+
+.progress-row,
+.transfer-meta {
+  display: flex;
+  align-items: center;
+}
+
+.progress-row {
+  gap: 8px;
+}
+
+.progress-row small {
+  width: 32px;
+  color: #537065;
+  font-size: 10px;
+  text-align: right;
+}
+
+.progress-track {
+  height: 5px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e3ebe5;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2e7653, #79bf61);
+  transition: width 220ms ease-out;
+}
+
+.transfer-meta {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: #6f7f77;
+  font-size: 10px;
+}
+
+.task-output,
+.task-error {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-output {
+  color: #48705b;
+}
+
+.task-error {
+  color: #8a4139;
 }
 
 .task-url strong,

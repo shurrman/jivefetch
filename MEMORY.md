@@ -2,19 +2,26 @@
 
 # JiveFetch project memory
 
-Last updated: 2026-09-01
+Last updated: 2026-09-03
 
 ## Current state
 
-- Version `0.0.1` is a working macOS foundation using Tauri 2, React, and Rust/SQLite.
-- Validated HTTP(S) URLs can be persisted in the queue; Pause/Resume/Stop/Remove use
-  optimistic concurrency through a task revision.
+- Version `0.1.0` is a working initial download preview using Tauri 2, React, Rust/SQLite,
+  locally installed `yt-dlp`, and FFmpeg.
+- A two-slot Rust scheduler owns typed process plans, attempts, progress, and
+  Pause/Resume/Stop/Remove with optimistic task revisions.
 - The UI and every Markdown document have EN/RU/Simplified Chinese variants. A clean
   first run defaults to EN; an explicit language choice is stored locally.
-- `yt-dlp` and FFmpeg exist on the development Mac but are not invoked by the app yet.
-- Work is local only. No Git remote is configured, so do not push.
+- The supervisor owns Unix process groups or Windows Job Objects, drains bounded
+  output, and terminates only the tree it created.
+- The real-engine loopback smoke test passes with yt-dlp `2026.07.04` and FFmpeg
+  `8.1.2`; the unrelated-process supervisor test also passes on macOS.
+- Native source CI is defined for Windows, macOS, and Linux but has not run remotely.
+- GitHub CLI is authenticated as `shurrman`; private repository
+  `https://github.com/shurrman/jivefetch` is configured as `origin`. Version `v0.1.0`
+  is the first native release candidate for macOS, Linux, and Windows.
 - Architecture and delivery contracts are documented under `docs/`.
-- The next step is the fake-engine/process-supervision slice, then real probing.
+- JiveFetch source is Apache-2.0. System engines are not redistributed.
 
 ## Durable decisions
 
@@ -42,7 +49,10 @@ Last updated: 2026-09-01
   tasks when limits change.
 - MediaHarbor and FlowGrab are research references only. Do not copy code, assets,
   UI text, or internal structure.
-- Licensing remains open pending a sidecar and distribution license review.
+- JiveFetch source and documentation use Apache-2.0. Bundled/managed engine
+  distribution remains separately gated by exact binary license review.
+- Tags matching the package version trigger native macOS/Linux/Windows preview builds
+  and publish only after every matrix build uploads packages and checksums.
 - Documentation and user-facing strings are complete only when EN/RU/Simplified
   Chinese are updated together and mutually linked; EN is the application default.
 
@@ -60,7 +70,8 @@ Last updated: 2026-09-01
 
 ## Next actions
 
-1. Implement a fake engine and process-tree helper.
-2. Expand the first SQLite schema into tasks/attempts/artifacts/events migrations.
-3. Add a real `yt-dlp` probe and single-download vertical slice.
-4. Decide license and sidecar acquisition policy before publishing installers.
+1. Observe the first Windows/macOS/Linux native CI and release workflow runs; fix any
+   platform-specific failures before treating `v0.1.0` as verified.
+2. Add metadata probing, format choice, and ffprobe capability reporting.
+3. Expand storage with artifacts/events, idempotency, retry policy, and pagination.
+4. Add credential-store-backed cookies and managed-engine verification before release.

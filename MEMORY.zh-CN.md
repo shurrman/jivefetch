@@ -2,15 +2,23 @@
 
 # JiveFetch 项目记忆
 
-更新日期：2026-09-01
+更新日期：2026-09-03
 
 ## 当前状态
 
-- `0.0.1` 是可运行的 macOS 基础版本：Tauri 2、React 和 Rust/SQLite。
-- 可以把 URL 加入持久队列；暂停、继续、停止和移除使用 revision 做乐观并发控制。
+- `0.1.0` 是可运行的首个下载预览版：Tauri 2、React、Rust/SQLite，以及本机
+  `yt-dlp` 和 FFmpeg。
+- 双槽 Rust scheduler 管理类型化 process plan、attempt、progress 与使用 task revision
+  的暂停、继续、停止和移除。
 - UI 和文档支持 EN/RU/简体中文；首次启动默认 EN，明确选择会保存在本机。
-- 系统中已找到 `yt-dlp` 和 FFmpeg，但应用尚未调用它们。
-- 当前仅本地工作；没有 remote，也不 push。
+- Supervisor 管理 Unix process group 或 Windows Job Object，限制输出并只终止自己创建的树。
+- macOS 上真实引擎 loopback smoke 已通过，版本为 yt-dlp `2026.07.04` 和 FFmpeg `8.1.2`；
+  保留无关进程的 supervisor 测试也已通过。
+- Windows/macOS/Linux native source CI 已定义，但尚未远程执行。
+- GitHub CLI 已以 `shurrman` 身份完成认证；私有仓库
+  `https://github.com/shurrman/jivefetch` 已配置为 `origin`。`v0.1.0` 是面向 macOS、
+  Linux 和 Windows 的首个 native release candidate。
+- JiveFetch 源代码采用 Apache-2.0；不再分发系统引擎。
 
 ## 长期决定
 
@@ -23,7 +31,9 @@
 - 格式来自实时探测，并由 Rust 编译为参数，不使用 shell 字符串。
 - 文档和用户可见字符串必须同步提供 EN/RU/简体中文版本。
 - MediaHarbor 和 FlowGrab 仅作为创意参考，不复制代码或结构。
-- 在完成 sidecar 二进制审查前不决定项目许可证。
+- JiveFetch 代码与文档采用 Apache-2.0；bundled/managed 引擎分发仍需按准确二进制许可证单独审核。
+- 与 package version 一致的 tag 会触发 macOS/Linux/Windows native preview 构建；
+  只有整个 matrix 上传 package 和 checksum 后才发布。
 
 ## 安全不变量
 
@@ -35,7 +45,8 @@
 
 ## 下一步
 
-1. Fake engine 与进程树 helper。
-2. 完整 tasks/attempts/artifacts/events 模型的首次迁移。
-3. 真实 `yt-dlp` 探测和单次下载纵向闭环。
-4. 公开打包前确定许可证和 sidecar 策略。
+1. 观察首次 Windows/macOS/Linux native CI 和 release workflow；在确认 `v0.1.0`
+   通过验证前修复所有 platform-specific 失败。
+2. 加入 metadata probe、格式选择和 ffprobe capability 报告。
+3. 扩展 storage：artifacts/events、idempotency、retry policy 和 pagination。
+4. 发布前加入 credential-store Cookie 和可验证的 managed engine。

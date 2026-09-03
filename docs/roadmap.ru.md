@@ -9,8 +9,9 @@
 ### Deliverables
 
 Tauri 2 + React/TS + Rust, pinned lockfiles/toolchains, format/lint/test/link/secret
-checks, native CI skeleton, ADR choices. Foundation `0.0.1` уже имеет working macOS UI,
-SQLite queue, три языка и unit/build checks; native CI/crate split ещё впереди.
+checks, native CI skeleton, ADR choices. `0.1.0` уже имеет working macOS UI, SQLite
+queue, три языка, Apache-2.0, unit/build checks и native CI matrix. Первый remote-run
+matrix, ADR и crate split ещё впереди.
 
 ### Exit criteria
 
@@ -36,6 +37,10 @@ Platform supervisor и helper child/grandchild, graceful/forced stop, scheduler 
 aging/locks, все controls. Exit: complete owned tree gone, unrelated same-name alive,
 races converge, crash boundaries recover.
 
+Уже реализованы process-group/Job-Object supervisor, bounded output, два scheduler
+slot, durable controls и unrelated-process test. Priority, aging, output locks и
+полный crash-boundary matrix остаются.
+
 ### Exit criteria
 
 Owned tree исчезает полностью, unrelated process жив, races и crash recovery сходятся.
@@ -47,6 +52,10 @@ Owned tree исчезает полностью, unrelated process жив, races 
 Verified engine registry, probe/normalized formats, format compiler, intake/picker,
 single real queued download, FFmpeg capability errors. Exit: fixture suite, clean-machine
 allowed test download, zero shell strings.
+
+Уже реализованы system engine discovery, typed real plan, progress parser, output
+verification, UI progress и loopback smoke. Metadata probe, format selection и
+ffprobe capabilities остаются.
 
 ### Exit criteria
 

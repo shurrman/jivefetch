@@ -10,8 +10,8 @@ diverges, preserve the stricter safety rule and update all translations together
 - `README.md` — repository overview and verified commands.
 - `CHANGES.md` — changes, before/after metrics, known issues.
 - `MEMORY.md` — durable, secret-free decisions and continuation point.
-- `docs/` — requirements, architecture, lifecycle, security, packaging, roadmap,
-  research references, and localization policy.
+- `docs/` — requirements, architecture, lifecycle, security, packaging, licensing,
+  roadmap, research references, and localization policy.
 
 ## Working style
 
@@ -52,9 +52,12 @@ Rust, React/TypeScript, `yt-dlp`, FFmpeg/ffprobe, and optional aria2.
 - Queue features require state-transition and crash/restart tests. Process control uses
   deterministic helper processes, not bulk real downloads.
 - Packaging claims require native Windows, macOS, and Linux tests.
+- A release tag must match the application/package versions. Keep releases marked as
+  pre-release until signing, notarization, sidecar licensing, and release gates pass.
 - MediaHarbor and FlowGrab are research references only. Do not copy code, assets,
   UI text, or internal structure.
-- Until a remote exists, work locally, do not push, and commit only when requested.
+- The private `origin` is configured. Commit or push only when the user explicitly
+  requests it and the relevant checks pass.
 
 ## Localization and documentation
 

@@ -16,9 +16,9 @@ JiveFetch — desktop UI над долгоживущими внешними пр
 - **Adapters:** Tauri IPC/events и конкретные интеграции `yt-dlp`/`ffmpeg`/`aria2`.
 
 Domain и Application должны компилироваться и тестироваться без webview и реальных
-download engines. В foundation `0.0.1` Rust/SQLite намеренно остаются в `src-tauri`;
-разделение на crates выполняется вместе с process supervision, когда появятся реальные
-интерфейсы, а не пустые каталоги.
+download engines. В `0.1.0` модули `model`, `storage`, `scheduler`, `engine` и
+`process_supervisor` остаются в `src-tauri`; последующий crate split пойдёт по уже
+проверенным интерфейсам, а не создаст пустые границы.
 
 ## 2. Целевая модель компонентов
 

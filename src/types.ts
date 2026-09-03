@@ -1,10 +1,15 @@
 export type TaskState =
   | "queued"
-  | "running"
+  | "starting"
+  | "downloading"
+  | "postprocessing"
+  | "pausing"
   | "paused"
+  | "stopping"
   | "stopped"
   | "completed"
-  | "failed";
+  | "failed"
+  | "interrupted";
 
 export type TaskAction = "pause" | "resume" | "stop";
 
@@ -15,4 +20,25 @@ export interface QueueTask {
   revision: number;
   createdAt: number;
   updatedAt: number;
+  progress: number;
+  downloadedBytes: number;
+  totalBytes: number | null;
+  speed: number | null;
+  eta: number | null;
+  outputPath: string | null;
+  errorCode: string | null;
+  attemptCount: number;
+}
+
+export interface EngineInfo {
+  available: boolean;
+  version: string | null;
+}
+
+export interface EngineStatus {
+  ready: boolean;
+  ytDlp: EngineInfo;
+  ffmpeg: EngineInfo;
+  outputDirectory: string;
+  concurrency: number;
 }

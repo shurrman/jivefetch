@@ -1,8 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { actOnTask, addTask, listTasks, removeTask } from "./api";
+import { actOnTask, addTask, getEngineStatus, listTasks, removeTask } from "./api";
 import { type Language, type TranslationKey, useI18n } from "./i18n";
-import type { QueueTask, TaskAction, TaskState } from "./types";
+import type { EngineStatus, QueueTask, TaskAction, TaskState } from "./types";
 
 const localeByLanguage: Record<Language, string> = {
   en: "en-US",
@@ -20,7 +20,32 @@ const backendErrorKeys: Record<string, TranslationKey> = {
   stopBeforeRemove: "stopBeforeRemove",
   storageError: "storageError",
   clockError: "clockError",
+  ytDlpMissing: "ytDlpMissing",
+  ffmpegMissing: "ffmpegMissing",
+  engineSpawnFailed: "engineSpawnFailed",
+  engineFailed: "engineFailed",
+  outputMissing: "outputMissing",
+  processSupervisorError: "processSupervisorError",
+  schedulerError: "schedulerError",
+  outputDirectoryError: "outputDirectoryError",
+  databaseTooNew: "databaseTooNew",
+  interruptedAfterRestart: "interruptedAfterRestart",
 };
+
+const activeStates = new Set<TaskState>([
+  "starting",
+  "downloading",
+  "postprocessing",
+  "pausing",
+  "stopping",
+]);
+const removableStates = new Set<TaskState>([
+  "paused",
+  "stopped",
+  "completed",
+  "failed",
+  "interrupted",
+]);
 
 function errorKeyForReason(reason: unknown): TranslationKey {
   const code = typeof reason === "string" ? reason : reason instanceof Error ? reason.message : "";
@@ -34,30 +59,52 @@ function stateClass(state: TaskState) {
 function displayUrl(value: string) {
   try {
     const url = new URL(value);
-    return { host: url.host, path: `${url.pathname}${url.search}` || "/" };
+    return { host: url.host, path: url.pathname || "/" };
   } catch {
     return { host: value, path: "" };
   }
 }
 
+function formatBytes(value: number | null, locale: string) {
+  if (value === null) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let shown = value;
+  let index = 0;
+  while (shown >= 1000 && index < units.length - 1) {
+    shown /= 1000;
+    index += 1;
+  }
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: index === 0 ? 0 : 1 }).format(shown)} ${units[index]}`;
+}
+
+function versionLabel(version: string | null, available: boolean, availableText: string, missingText: string) {
+  return version ?? (available ? availableText : missingText);
+}
+
 export default function App() {
   const { language, setLanguage, t } = useI18n();
+  const locale = localeByLanguage[language];
   const [tasks, setTasks] = useState<QueueTask[]>([]);
+  const [engines, setEngines] = useState<EngineStatus | null>(null);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<TranslationKey | null>(null);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (surfaceError = true) => {
     try {
-      setTasks(await listTasks());
-      setError(null);
+      const [nextTasks, nextEngines] = await Promise.all([listTasks(), getEngineStatus()]);
+      setTasks(nextTasks);
+      setEngines(nextEngines);
+      if (surfaceError) setError(null);
     } catch (reason) {
-      setError(errorKeyForReason(reason));
+      if (surfaceError) setError(errorKeyForReason(reason));
     }
   }, []);
 
   useEffect(() => {
     void reload();
+    const timer = window.setInterval(() => void reload(false), 1000);
+    return () => window.clearInterval(timer);
   }, [reload]);
 
   const taskCount = useMemo(() => tasks.length, [tasks]);
@@ -103,9 +150,7 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true">
-            JF
-          </div>
+          <div className="brand-mark" aria-hidden="true">JF</div>
           <div>
             <strong>{t("appName")}</strong>
             <span>{t("tagline")}</span>
@@ -128,9 +173,7 @@ export default function App() {
 
       <section className="hero">
         <div>
-          <div className="eyebrow">
-            <span className="pulse" /> {t("foundation")}
-          </div>
+          <div className="eyebrow"><span className="pulse" /> {t("foundation")}</div>
           <h1>{t("localFirst")}</h1>
           <p>{t("defaultLanguage")}</p>
         </div>
@@ -157,9 +200,7 @@ export default function App() {
       {error ? (
         <div className="error-banner" role="alert">
           <span>{t(error)}</span>
-          <button type="button" onClick={() => void reload()}>
-            {t("refresh")}
-          </button>
+          <button type="button" onClick={() => void reload()}>{t("refresh")}</button>
         </div>
       ) : null}
 
@@ -172,24 +213,28 @@ export default function App() {
           </div>
         </article>
         <article>
-          <span className="status-icon status-icon-muted">→</span>
+          <span className={`status-icon ${engines?.ready ? "" : "status-icon-warning"}`}>▶</span>
           <div>
-            <strong>{t("engineNext")}</strong>
-            <p>{t("engineNextText")}</p>
+            <strong>{t("engines")}</strong>
+            <p>
+              {engines?.ready
+                ? t("enginesReady").replace("{count}", String(engines.concurrency))
+                : t("enginesMissing")}
+            </p>
+            <div className="engine-versions">
+              <span>yt-dlp: {versionLabel(engines?.ytDlp.version ?? null, engines?.ytDlp.available ?? false, t("available"), t("missing"))}</span>
+              <span>FFmpeg: {versionLabel(engines?.ffmpeg.version ?? null, engines?.ffmpeg.available ?? false, t("available"), t("missing"))}</span>
+            </div>
           </div>
         </article>
       </section>
 
+      {engines ? <div className="output-folder"><strong>{t("outputFolder")}:</strong> {engines.outputDirectory}</div> : null}
+
       <section className="queue-section">
         <div className="section-heading">
-          <div>
-            <span>{t("queue")}</span>
-            <strong>{taskCount}</strong>
-            <small>{t("tasks")}</small>
-          </div>
-          <button className="button button-ghost" type="button" onClick={() => void reload()}>
-            {t("refresh")}
-          </button>
+          <div><span>{t("queue")}</span><strong>{taskCount}</strong><small>{t("tasks")}</small></div>
+          <button className="button button-ghost" type="button" onClick={() => void reload()}>{t("refresh")}</button>
         </div>
 
         {tasks.length === 0 ? (
@@ -202,42 +247,48 @@ export default function App() {
           <div className="task-list">
             {tasks.map((task) => {
               const shown = displayUrl(task.url);
+              const progress = Math.round(task.progress * 100);
+              const taskError = task.errorCode ? backendErrorKeys[task.errorCode] : null;
               return (
                 <article className="task-card" key={task.id}>
                   <div className="task-main">
                     <span className={stateClass(task.state)}>{t(task.state)}</span>
-                    <div className="task-url">
-                      <strong>{shown.host}</strong>
-                      <span>{shown.path}</span>
+                    <div className="task-details">
+                      <div className="task-url"><strong>{shown.host}</strong><span>{shown.path}</span></div>
+                      {activeStates.has(task.state) || task.state === "completed" ? (
+                        <div className="progress-row">
+                          <div className="progress-track" aria-label={`${progress}% ${t("complete")}`}>
+                            <span style={{ width: `${progress}%` }} />
+                          </div>
+                          <small>{progress}%</small>
+                        </div>
+                      ) : null}
+                      <div className="transfer-meta">
+                        <span>{t("downloaded")}: {formatBytes(task.downloadedBytes, locale)}{task.totalBytes ? ` / ${formatBytes(task.totalBytes, locale)}` : ""}</span>
+                        {task.speed ? <span>{formatBytes(task.speed, locale)}/s</span> : null}
+                        {task.eta !== null ? <span>{t("etaLabel")}: {task.eta}s</span> : null}
+                      </div>
+                      {task.outputPath ? <div className="task-output">{task.outputPath}</div> : null}
+                      {taskError ? <div className="task-error">{t(taskError)}</div> : null}
                     </div>
                     <div className="task-meta">
-                      <span>
-                        {t("created")} {new Date(task.createdAt * 1000).toLocaleString(localeByLanguage[language])}
-                      </span>
-                      <span>
-                        {t("revision")} {task.revision}
-                      </span>
+                      <span>{t("created")} {new Date(task.createdAt * 1000).toLocaleString(locale)}</span>
+                      <span>{t("attempt")} {task.attemptCount} · {t("revision")} {task.revision}</span>
                     </div>
                   </div>
                   <div className="task-actions">
-                    {task.state === "queued" || task.state === "running" ? (
-                      <button type="button" onClick={() => void runAction(task, "pause")}>
-                        {t("pause")}
-                      </button>
+                    {["queued", "starting", "downloading", "postprocessing"].includes(task.state) ? (
+                      <button type="button" onClick={() => void runAction(task, "pause")}>{t("pause")}</button>
                     ) : null}
-                    {task.state === "paused" || task.state === "stopped" ? (
-                      <button type="button" onClick={() => void runAction(task, "resume")}>
-                        {t("resume")}
-                      </button>
+                    {["paused", "stopped", "failed", "interrupted"].includes(task.state) ? (
+                      <button type="button" onClick={() => void runAction(task, "resume")}>{t("resume")}</button>
                     ) : null}
-                    {task.state !== "stopped" && task.state !== "completed" ? (
-                      <button type="button" onClick={() => void runAction(task, "stop")}>
-                        {t("stop")}
-                      </button>
+                    {["queued", "starting", "downloading", "postprocessing", "pausing", "paused"].includes(task.state) ? (
+                      <button type="button" onClick={() => void runAction(task, "stop")}>{t("stop")}</button>
                     ) : null}
-                    <button className="danger" type="button" onClick={() => void remove(task)}>
-                      {t("remove")}
-                    </button>
+                    {removableStates.has(task.state) ? (
+                      <button className="danger" type="button" onClick={() => void remove(task)}>{t("remove")}</button>
+                    ) : null}
                   </div>
                 </article>
               );

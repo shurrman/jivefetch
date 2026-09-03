@@ -1,9 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { QueueTask, TaskAction } from "./types";
+import type { EngineStatus, QueueTask, TaskAction } from "./types";
 
 export function listTasks(): Promise<QueueTask[]> {
   return invoke<QueueTask[]>("list_tasks");
+}
+
+export function getEngineStatus(): Promise<EngineStatus> {
+  return invoke<EngineStatus>("engine_status");
 }
 
 export function addTask(url: string): Promise<QueueTask> {

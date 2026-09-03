@@ -17,7 +17,7 @@ artifact — attributed partial/final file. У task много attempts в ис�
 
 States: `probing`, `queued`, `starting`, `downloading`, `postprocessing`, `pausing`,
 `paused`, `stopping`, `stopped`, `waiting_retry`, `completed`, `failed`, `interrupted`,
-`removed`. Foundation `0.0.1` реализует stable subset `queued/paused/stopped` плюс
+`removed`. Foundation `0.1.0` реализует stable subset `queued/paused/stopped` плюс
 зарезервированные runtime states.
 
 ## 4. Схема переходов

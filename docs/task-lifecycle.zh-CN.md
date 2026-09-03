@@ -17,7 +17,7 @@ attempt，但最多一个 live attempt。
 
 状态包括 `probing`、`queued`、`starting`、`downloading`、`postprocessing`、
 `pausing`、`paused`、`stopping`、`stopped`、`waiting_retry`、`completed`、
-`failed`、`interrupted`、`removed`。Foundation `0.0.1` 实现了 `queued/paused/stopped`
+`failed`、`interrupted`、`removed`。Foundation `0.1.0` 实现了 `queued/paused/stopped`
 稳定子集，并为 runtime state 保留模型。
 
 ## 4. 转换概览

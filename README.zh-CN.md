@@ -8,10 +8,10 @@ JiveFetch 是一款本地优先、跨平台的桌面媒体下载管理器，用�
 目标技术栈为 Tauri 2、Rust、React/TypeScript，以及受管理的 `yt-dlp`、
 `ffmpeg`/`ffprobe` 和可选的 `aria2`。
 
-`0.0.1` 已是可在 macOS 上运行的基础版本：它包含 Tauri 桌面外壳、英语、俄语和
+`0.1.0` 是可运行的首个预览版：它包含 Tauri 桌面外壳、英语、俄语和
 简体中文界面，以及由 Rust 管理的 SQLite 队列。用户可以添加经过验证的 HTTP(S)
-链接，并持久执行暂停、继续、停止和移除。此版本不会假装已经下载媒体；
-`yt-dlp`/FFmpeg 集成是下一个纵向功能切片。
+链接，通过本机安装的 `yt-dlp` 和 FFmpeg 下载、显示进度，并持久执行暂停、继续、
+停止和移除。重启后会依据 SQLite 协调中断任务，并可从 partial 文件继续。
 
 ## 产品目标
 
@@ -55,13 +55,15 @@ SQLite 是持久事实来源。React 从快照和有序事件重建状态。只�
 
 ```text
 src/              React/TypeScript UI 与三种语言字典
-src-tauri/        Tauri 外壳及 Rust/SQLite 队列命令
+src-tauri/        Tauri 外壳、scheduler、supervisor 与 Rust/SQLite
+.github/workflows/ Windows/macOS/Linux 原生源码验证
 docs/             EN/RU/简体中文需求、架构和路线图
 package.json      前端和 Tauri CLI 依赖
 README.*.md       多语言项目入口
 ```
 
-加入进程监管和下载引擎后，Rust 代码将按 core/storage/process/engines 边界拆分。
+首个纵向功能在 `src-tauri` 中以独立 Rust 模块实现 scheduler、storage、engine adapter
+和 process supervisor；目标 crate 边界继续记录在架构文档中。
 
 ## 文档
 
@@ -70,33 +72,39 @@ README.*.md       多语言项目入口
 - [任务生命周期](docs/task-lifecycle.zh-CN.md)
 - [安全与认证](docs/security.zh-CN.md)
 - [跨平台打包](docs/packaging.zh-CN.md)
+- [许可与第三方引擎](docs/licensing.zh-CN.md)
 - [路线图](docs/roadmap.zh-CN.md)
 - [研究参考](docs/research-references.zh-CN.md)
 - [本地化策略](docs/localization.zh-CN.md)
 - [变更记录](CHANGES.zh-CN.md)
+- [v0.1.0 发布说明](docs/releases/v0.1.0.zh-CN.md)
 - [项目记忆](MEMORY.zh-CN.md)
 
 ## 在 macOS 本地运行
 
-已验证要求：Node.js 22+、npm 10+、Rust 1.88+。
+已验证要求：Node.js 22+、npm 10+、Rust 1.88+、`yt-dlp` 和 FFmpeg。
 
 ```bash
 npm install
 npm run build
 cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --test real_engine_smoke -- --ignored
 npm run tauri dev
 ```
 
 队列数据库保存在系统应用数据目录，而不是仓库中。首次运行默认英语；用户明确选择的
 语言会保存在本机。
 
-下一步是 fake engine 和进程树监管，然后加入真实 `yt-dlp` 探测与单次下载闭环。
+被忽略的 smoke 测试使用 FFmpeg 创建短 fixture，仅通过 loopback 提供，随后由真实
+Rust scheduler 和 `yt-dlp` 下载并验证输出路径；不需要公共媒体或外部网络。
 
 ## 项目标识
 
 - 产品：**JiveFetch**
 - 仓库：`jivefetch`
+- 私有仓库：[github.com/shurrman/jivefetch](https://github.com/shurrman/jivefetch)
 - Application ID：`top.jivejournal.jivefetch`
 - 计划网站：`fetch.jivejournal.top`
 
-项目许可证将在完成 sidecar 二进制分发义务审查后确定。
+- 源代码许可证：[Apache-2.0](LICENSE)
+- 当前引擎模式：验证系统 executable，不再分发引擎二进制文件

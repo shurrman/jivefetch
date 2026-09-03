@@ -1,0 +1,139 @@
+name: Native Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  create-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate tag and create draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "$GITHUB_REF_NAME" = "v$version"
+          notes="docs/releases/$GITHUB_REF_NAME.md"
+          test -f "$notes"
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --draft \
+            --prerelease \
+            --title "JiveFetch $GITHUB_REF_NAME" \
+            --notes-file "$notes"
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux x64
+            os: ubuntu-latest
+            bundles: appimage,deb
+          - label: macOS
+            os: macos-latest
+            bundles: dmg
+          - label: Windows x64
+            os: windows-latest
+            bundles: nsis,msi
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libxdo-dev librsvg2-dev patchelf
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+          package-manager-cache: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify source
+        run: npm run check
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Lint Rust
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build native packages
+        run: npm run tauri -- build --bundles "${{ matrix.bundles }}"
+
+      - name: Collect and checksum packages
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          case "$RUNNER_OS" in
+            Linux)
+              find src-tauri/target/release/bundle -type f \( -name '*.AppImage' -o -name '*.deb' \) -exec cp '{}' release-assets/ \;
+              ;;
+            macOS)
+              find src-tauri/target/release/bundle -type f -name '*.dmg' -exec cp '{}' release-assets/ \;
+              ;;
+            Windows)
+              find src-tauri/target/release/bundle -type f \( -name '*.msi' -o -name '*-setup.exe' \) -exec cp '{}' release-assets/ \;
+              ;;
+          esac
+          node scripts/checksum-assets.mjs \
+            release-assets \
+            "SHA256SUMS-${RUNNER_OS}-${RUNNER_ARCH}.txt"
+
+      - name: Upload packages to draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+
+  publish-release:
+    name: Publish preview release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease=true

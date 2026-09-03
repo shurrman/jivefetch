@@ -2,16 +2,24 @@
 
 # Память проекта JiveFetch
 
-Обновлено: 2026-09-01
+Обновлено: 2026-09-03
 
 ## Текущее состояние
 
-- `0.0.1` — рабочий macOS foundation: Tauri 2, React и Rust/SQLite.
-- URL добавляются в устойчивую очередь; Pause/Resume/Stop/Remove меняют состояние с
-  optimistic concurrency по revision.
+- `0.1.0` — рабочий первый download preview: Tauri 2, React, Rust/SQLite, локальные
+  `yt-dlp` и FFmpeg.
+- Rust-scheduler на два слота владеет typed process plans, attempts, progress и
+  Pause/Resume/Stop/Remove с optimistic concurrency по revision.
 - UI и документы имеют EN/RU/简体中文; первый запуск всегда EN, явный выбор сохраняется.
-- `yt-dlp` и FFmpeg найдены в системе, но ещё не подключены к приложению.
-- Работа локальная; remote и push отсутствуют.
+- Supervisor владеет Unix process group или Windows Job Object, ограниченно дренирует
+  output и завершает только созданное им дерево.
+- На macOS прошли real-engine loopback smoke с yt-dlp `2026.07.04`/FFmpeg `8.1.2`
+  и тест сохранения постороннего процесса.
+- Native source CI описан для Windows/macOS/Linux, но удалённо ещё не выполнялся.
+- GitHub CLI авторизован как `shurrman`; приватный репозиторий
+  `https://github.com/shurrman/jivefetch` настроен как `origin`. Версия `v0.1.0` —
+  первый native release candidate для macOS, Linux и Windows.
+- Исходники JiveFetch — Apache-2.0; системные движки не распространяются.
 
 ## Устойчивые решения
 
@@ -25,7 +33,10 @@
 - Формат выбирается после живого probe и компилируется в Rust без shell-строк.
 - Документы и пользовательские строки всегда поддерживаются синхронно на EN/RU/简体中文.
 - MediaHarbor и FlowGrab — только ориентиры идей; код и структура не копируются.
-- Лицензия остаётся открытым решением до аудита sidecar-бинарников.
+- Код и документация JiveFetch используют Apache-2.0. Распространение bundled/managed
+  движков остаётся отдельным gate по точной лицензии бинарника.
+- Tag, совпадающий с package version, запускает native preview-сборки macOS/Linux/Windows;
+  публикация происходит только после загрузки пакетов и checksums всей matrix.
 
 ## Инварианты
 
@@ -37,7 +48,8 @@
 
 ## Следующее
 
-1. Fake engine и process-tree helper.
-2. Первая миграция полной модели tasks/attempts/artifacts/events.
-3. Реальный `yt-dlp` probe и single-download vertical slice.
-4. Выбор лицензии и sidecar policy до публичной упаковки.
+1. Проконтролировать первые native CI и release workflow на Windows/macOS/Linux;
+   исправить platform-specific ошибки до признания `v0.1.0` проверенной.
+2. Добавить metadata probe, выбор формата и отчёт capabilities ffprobe.
+3. Расширить storage: artifacts/events, idempotency, retry policy и pagination.
+4. Добавить cookies через credential store и проверяемые managed engines до release.
