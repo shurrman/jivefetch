@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "check": "npm run build && npm run check:docs && npm run check:secrets",
+    "check": "npm run build && npm run check:docs && npm run check:release-notes && npm run check:secrets",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:release-notes": "node scripts/render-release-notes.mjs docs/releases/v0.1.1.md shurrman/jivefetch v0.1.1 --check",
     "check:secrets": "node scripts/check-secrets.mjs",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri"

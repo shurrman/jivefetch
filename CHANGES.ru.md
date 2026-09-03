@@ -23,12 +23,14 @@
   Windows с восемью installer/checksum artifacts.
 - Локальные `AGENTS*` и `MEMORY*` убраны из version control, но рабочие копии сохранены
   точными правилами ignore.
+- Исправлены опубликованные ссылки на переводы/документацию `v0.2.0`; release workflow
+  теперь преобразует относительные ссылки в стабильные абсолютные URL конкретного tag.
 
 ### Метрики
 
 - Было: 135 файлов, 45 Markdown-документов в 15 translation sets, 3 262 строки
   application/check source и 8 обычных Rust-тестов.
-- Стало: 134 файла, 42 Markdown-документа в 14 translation sets, 4 039 строк,
+- Стало: 135 файлов, 42 Markdown-документа в 14 translation sets, 4 075 строк,
   14 обычных Rust-тестов и opt-in real-engine smoke.
 
 ## 0.1.1 - 2026-09-03

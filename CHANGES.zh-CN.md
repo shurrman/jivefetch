@@ -20,11 +20,13 @@
   发布，包含八个 installer/checksum artifact。
 - 本地 `AGENTS*` 与 `MEMORY*` context 已移出 version control，并通过明确 ignore
   规则保留工作副本。
+- 修复了已发布 `v0.2.0` 的翻译/文档链接；release workflow 现在会把相对链接转换为
+  对应 tag 的稳定绝对 URL。
 
 ### 指标
 
 - 之前：135 个文件、15 组共 45 个 Markdown、3,262 行应用/检查源码、8 个常规 Rust 测试。
-- 现在：134 个文件、14 组共 42 个 Markdown、4,039 行源码、14 个常规 Rust 测试，
+- 现在：135 个文件、14 组共 42 个 Markdown、4,075 行源码、14 个常规 Rust 测试，
   以及 opt-in 真实引擎 smoke。
 
 ## 0.1.1 - 2026-09-03

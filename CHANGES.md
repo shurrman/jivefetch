@@ -25,12 +25,14 @@ This file records validated project-level changes and before/after metrics.
   and Windows, with eight installer/checksum assets.
 - Moved local `AGENTS*` and `MEMORY*` context out of version control while preserving
   local working copies through explicit ignore rules.
+- Repaired the published translation/documentation links for `v0.2.0` and made the
+  release workflow render every relative note link as a tag-stable absolute URL.
 
 ### Metrics
 
 - Before: 135 repository files, 45 Markdown documents in 15 translation sets, 3,262
   application/check source lines, and 8 regular Rust tests.
-- After: 134 repository files, 42 Markdown documents in 14 translation sets, 4,039
+- After: 135 repository files, 42 Markdown documents in 14 translation sets, 4,075
   application/check source lines, and 14 regular Rust tests plus the opt-in real-engine smoke.
 
 ## 0.1.1 - 2026-09-03

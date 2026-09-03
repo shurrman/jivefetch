@@ -31,13 +31,16 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           test "$GITHUB_REF_NAME" = "v$version"
           notes="docs/releases/$GITHUB_REF_NAME.md"
+          rendered_notes="$RUNNER_TEMP/$GITHUB_REF_NAME-release-notes.md"
           test -f "$notes"
+          node scripts/render-release-notes.mjs \
+            "$notes" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" > "$rendered_notes"
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
             --draft \
             --prerelease \
             --title "JiveFetch $GITHUB_REF_NAME" \
-            --notes-file "$notes"
+            --notes-file "$rendered_notes"
 
   build:
     name: Build ${{ matrix.label }}
