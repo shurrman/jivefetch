@@ -19,6 +19,8 @@
 - 已创建私有 GitHub 仓库 `shurrman/jivefetch` 并配置为 `origin`。
 - 新增 tag-driven native release workflow，用于生成 macOS DMG、Linux AppImage/deb、
   Windows NSIS/MSI 预览包及各平台 SHA-256 checksum。
+- 首次远程 native CI matrix 已在 macOS、Linux 和 Windows 上通过：frontend、三语文档、
+  secret scan、rustfmt、clippy、Rust 测试和 desktop compilation。
 
 ### 指标
 
@@ -30,4 +32,3 @@
 ### 待完成
 
 - Installer signing identity、managed sidecar、FFmpeg 再分发审查、SBOM/provenance 和 clean-machine release test 尚未完成。
-- Native CI 已定义但尚未运行，因为本地变更尚未 commit 或 push 到 GitHub remote。

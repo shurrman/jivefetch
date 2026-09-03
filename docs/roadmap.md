@@ -22,8 +22,8 @@ an earlier durability, security, or process-ownership gate.
 
 Current foundation status: the macOS Tauri shell, React production build, Rust/SQLite
 queue, lockfiles, unit tests, multilingual UI/docs, Apache-2.0, and a native CI matrix
-are present. The matrix still needs its first remote run; ADRs and the planned Rust
-crate split remain before Phase 0 is fully closed.
+are present. The first remote matrix passed on macOS, Linux, and Windows; ADRs and the
+planned Rust crate split remain before Phase 0 is fully closed.
 
 ### Exit criteria
 

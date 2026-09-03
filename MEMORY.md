@@ -16,7 +16,8 @@ Last updated: 2026-09-03
   output, and terminates only the tree it created.
 - The real-engine loopback smoke test passes with yt-dlp `2026.07.04` and FFmpeg
   `8.1.2`; the unrelated-process supervisor test also passes on macOS.
-- Native source CI is defined for Windows, macOS, and Linux but has not run remotely.
+- The first remote native source CI passed on Windows, macOS, and Linux in GitHub
+  Actions run `33779282453`.
 - GitHub CLI is authenticated as `shurrman`; private repository
   `https://github.com/shurrman/jivefetch` is configured as `origin`. Version `v0.1.0`
   is the first native release candidate for macOS, Linux, and Windows.
@@ -70,8 +71,8 @@ Last updated: 2026-09-03
 
 ## Next actions
 
-1. Observe the first Windows/macOS/Linux native CI and release workflow runs; fix any
-   platform-specific failures before treating `v0.1.0` as verified.
+1. Observe the first Windows/macOS/Linux release workflow; fix any packaging failure
+   before treating `v0.1.0` artifacts as verified.
 2. Add metadata probing, format choice, and ffprobe capability reporting.
 3. Expand storage with artifacts/events, idempotency, retry policy, and pagination.
 4. Add credential-store-backed cookies and managed-engine verification before release.

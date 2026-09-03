@@ -23,6 +23,8 @@
 - Создан приватный GitHub-репозиторий `shurrman/jivefetch` и настроен `origin`.
 - Добавлен tag-driven native release workflow для macOS DMG, Linux AppImage/deb и
   Windows NSIS/MSI preview-пакетов с SHA-256 checksums для каждой платформы.
+- Первая remote native CI matrix прошла на macOS, Linux и Windows: frontend,
+  три языка документации, secret scan, rustfmt, clippy, Rust-тесты и desktop compilation.
 
 ### Метрики
 
@@ -36,5 +38,3 @@
 
 - Не готовы signing identities, managed sidecars, проверка распространения FFmpeg,
   SBOM/provenance и clean-machine release tests.
-- Native CI описан, но ещё не запускался: локальные изменения не закоммичены и не
-  отправлены в GitHub remote.

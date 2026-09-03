@@ -33,6 +33,8 @@ This file records validated project-level changes and before/after metrics.
   `origin`.
 - Added a tag-driven native release workflow for macOS DMG, Linux AppImage/deb, and
   Windows NSIS/MSI preview packages with per-platform SHA-256 checksums.
+- Passed the first remote native CI matrix on macOS, Linux, and Windows: frontend,
+  multilingual docs, secret scan, rustfmt, clippy, Rust tests, and desktop compilation.
 
 ### Baseline metrics
 
@@ -49,5 +51,3 @@ This file records validated project-level changes and before/after metrics.
   rules that are preserved for compatibility but are not JiveFetch architecture.
 - Installer signing identities, managed sidecar distribution, FFmpeg redistribution
   review, SBOM/provenance, and clean-machine release tests are not yet complete.
-- Native CI is defined but has not run because the local changes have not been
-  committed or pushed to the GitHub remote.

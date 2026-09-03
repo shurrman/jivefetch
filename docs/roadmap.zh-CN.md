@@ -10,7 +10,8 @@
 
 Tauri 2 + React/TS + Rust、固定 lockfile/toolchain、format/lint/test/link/secret check、
 原生 CI 骨架和 ADR。`0.1.0` 已有可运行 macOS UI、SQLite 队列、三种语言、Apache-2.0、
-unit/build 检查和 native CI matrix；matrix 首次 remote run、ADR 和 crate 拆分仍待完成。
+unit/build 检查和 native CI matrix；首次 remote matrix 已在 macOS/Linux/Windows
+通过，ADR 和 crate 拆分仍待完成。
 
 ### Exit criteria
 

@@ -15,7 +15,8 @@
   output и завершает только созданное им дерево.
 - На macOS прошли real-engine loopback smoke с yt-dlp `2026.07.04`/FFmpeg `8.1.2`
   и тест сохранения постороннего процесса.
-- Native source CI описан для Windows/macOS/Linux, но удалённо ещё не выполнялся.
+- Первая remote native source CI успешно прошла на Windows, macOS и Linux в GitHub
+  Actions run `33779282453`.
 - GitHub CLI авторизован как `shurrman`; приватный репозиторий
   `https://github.com/shurrman/jivefetch` настроен как `origin`. Версия `v0.1.0` —
   первый native release candidate для macOS, Linux и Windows.
@@ -48,8 +49,8 @@
 
 ## Следующее
 
-1. Проконтролировать первые native CI и release workflow на Windows/macOS/Linux;
-   исправить platform-specific ошибки до признания `v0.1.0` проверенной.
+1. Проконтролировать первый release workflow на Windows/macOS/Linux; исправить ошибки
+   packaging до признания artifacts `v0.1.0` проверенными.
 2. Добавить metadata probe, выбор формата и отчёт capabilities ffprobe.
 3. Расширить storage: artifacts/events, idempotency, retry policy и pagination.
 4. Добавить cookies через credential store и проверяемые managed engines до release.

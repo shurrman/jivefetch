@@ -11,7 +11,7 @@
 Tauri 2 + React/TS + Rust, pinned lockfiles/toolchains, format/lint/test/link/secret
 checks, native CI skeleton, ADR choices. `0.1.0` уже имеет working macOS UI, SQLite
 queue, три языка, Apache-2.0, unit/build checks и native CI matrix. Первый remote-run
-matrix, ADR и crate split ещё впереди.
+matrix прошёл на macOS/Linux/Windows; ADR и crate split ещё впереди.
 
 ### Exit criteria
 

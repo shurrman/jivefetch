@@ -14,7 +14,8 @@
 - Supervisor 管理 Unix process group 或 Windows Job Object，限制输出并只终止自己创建的树。
 - macOS 上真实引擎 loopback smoke 已通过，版本为 yt-dlp `2026.07.04` 和 FFmpeg `8.1.2`；
   保留无关进程的 supervisor 测试也已通过。
-- Windows/macOS/Linux native source CI 已定义，但尚未远程执行。
+- 首次远程 native source CI 已在 Windows、macOS 和 Linux 上通过；GitHub Actions
+  run 为 `33779282453`。
 - GitHub CLI 已以 `shurrman` 身份完成认证；私有仓库
   `https://github.com/shurrman/jivefetch` 已配置为 `origin`。`v0.1.0` 是面向 macOS、
   Linux 和 Windows 的首个 native release candidate。
@@ -45,8 +46,8 @@
 
 ## 下一步
 
-1. 观察首次 Windows/macOS/Linux native CI 和 release workflow；在确认 `v0.1.0`
-   通过验证前修复所有 platform-specific 失败。
+1. 观察首次 Windows/macOS/Linux release workflow；在确认 `v0.1.0` artifact
+   通过验证前修复所有 packaging 失败。
 2. 加入 metadata probe、格式选择和 ffprobe capability 报告。
 3. 扩展 storage：artifacts/events、idempotency、retry policy 和 pagination。
 4. 发布前加入 credential-store Cookie 和可验证的 managed engine。
