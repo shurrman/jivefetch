@@ -1,7 +1,7 @@
 {
   "name": "jivefetch",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "check": "npm run build && npm run check:docs && npm run check:release-notes && npm run check:secrets",
     "check:docs": "node scripts/check-docs.mjs",
-    "check:release-notes": "node scripts/render-release-notes.mjs docs/releases/v0.1.1.md shurrman/jivefetch v0.1.1 --check",
+    "check:release-notes": "node scripts/render-release-notes.mjs docs/releases/v0.3.0.md shurrman/jivefetch v0.3.0 --check",
     "check:secrets": "node scripts/check-secrets.mjs",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri"

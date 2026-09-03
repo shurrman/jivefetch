@@ -120,6 +120,12 @@ allowlist、工作目录、预期 artifacts 和 capabilities，不含 shell synt
 `aria2` 仅在能力和协议匹配时启用。优先解析 versioned JSON/progress template；文本
 解析被隔离、以 fixtures 测试，并视为不可信输入。
 
+`0.3.0` 功能通过与下载相同的 supervised process 边界和 browser-cookie selector，
+执行有界的单 URL JSON probe。React 接收标准化视频格式 metadata，隐藏内部 format ID
+以及没有大小估算的重复标题式选项，只返回选中的已验证 selector。该 selector 随任务
+持久保存，随后成为类型化 `--format` 参数。Download plan 会显式传入 `--progress`，
+因为输出最终路径可能触发 yt-dlp quiet behavior 并抑制进度输出。
+
 ## 8. 进程监管
 
 有效工作前，macOS/Linux attempt 创建新 session/process group；Windows 使用

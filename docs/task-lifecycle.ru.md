@@ -82,8 +82,12 @@ Partial reuse требует совместимых destination/template/source/
 
 Progress coalesced для UI, checkpoints —
 на bounded interval и phase boundaries; 100% progress сам по себе не означает complete.
-UI `0.2.0` запрашивает authoritative snapshot каждые пять секунд. Синий, зелёный и
+UI `0.3.0` запрашивает authoritative snapshot каждые пять секунд. Синий, зелёный и
 красный progress дополняет явный текстовый state для active, completed и failed/interrupted.
+Для completion дополнительно требуется проверенный непустой обычный файл внутри настроенной
+папки. Фактический размер сохраняется, а startup исправляет старые нулевые метрики completed
+задач по тому же проверенному файлу. Команды правой кнопки остаются projection тех же
+revision-checked переходов Start/Stop/Pause/Remove; Copy URL состояние не меняет.
 
 ## 10. Concurrency races для тестирования
 

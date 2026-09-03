@@ -4,6 +4,37 @@
 
 This file records validated project-level changes and before/after metrics.
 
+## 0.3.0 - 2026-09-03
+
+### Added
+
+- Added a live, cookie-aware `yt-dlp` JSON probe and per-task selection from actual
+  source video formats. The picker shows resolution, FPS, source bitrate, codec,
+  container, and estimated size, defaults to maximum quality, and hides internal IDs
+  and duplicate-looking rows without an estimated size.
+- Added a custom right-click task menu with Start, Stop, Pause, Copy URL, and Remove;
+  unavailable state transitions remain visible but disabled.
+- Persisted the selected validated format selector in SQLite schema version 5 and pass
+  it to the engine only as a typed argument vector.
+
+### Fixed
+
+- Explicitly enabled `yt-dlp --progress` so final-path printing no longer suppresses
+  current bytes, total size, speed, ETA, and progress events.
+- Preserved non-secret URL query parameters in queue cards while redacting secret-like
+  values, so distinct YouTube `/watch?v=…` tasks remain distinguishable.
+- Required a verified non-empty output file before completion, persisted its actual
+  size, and reconciled zero-byte metrics for existing completed tasks on startup.
+- Waited for fast version-process output to drain after exit, preventing intermittent
+  false `yt-dlp not found` results on a cold desktop launch.
+
+### Metrics
+
+- Before (`v0.2.0`): 140 repository files, 48 Markdown documents, 4,029 lines of
+  application/check source, and 14 regular Rust tests plus the opt-in real-engine smoke.
+- After: 141 repository files, 48 Markdown documents in 16 EN/RU/Simplified Chinese
+  sets, 4,975 source lines, and 19 regular Rust tests plus the passing real-engine smoke.
+
 ## 0.2.0 - 2026-09-03
 
 ### Added

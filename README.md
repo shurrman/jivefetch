@@ -9,15 +9,18 @@ downloads. It combines a Tauri 2 shell, a Rust scheduling and process-control
 core, and a React/TypeScript interface with `yt-dlp`, `ffmpeg`/`ffprobe`, and
 optionally `aria2` as managed external engines.
 
-Version `0.2.0` is a working settings and live-queue preview. It provides a Tauri 2 desktop
+Version `0.3.0` is a working format-selection and live-queue preview. It provides a Tauri 2 desktop
 shell, a React interface in English, Russian, and Simplified Chinese, and a Rust-owned
 SQLite queue. Users can add validated HTTP(S) URLs, download through locally installed
 `yt-dlp` and FFmpeg, select 1–10 or a custom bounded concurrency, apply a global speed
 budget, choose the output folder, switch system/light/dark themes, and see live progress,
-speed, ETA, and sizes. Interrupted work is reconciled on restart and can resume from
-partial files. A browser dropdown can pass one of yt-dlp's supported browser identifiers
-to `--cookies-from-browser`; JiveFetch never copies cookie values. The default output
-remains the platform Downloads directory plus `JiveFetch`.
+speed, ETA, and sizes. A live probe exposes the source's real video formats, bitrates,
+codecs, FPS, containers, and estimated sizes; maximum quality remains the default.
+Task URLs preserve non-secret query parameters, and right-clicking a task opens Start,
+Stop, Pause, Copy URL, and Remove actions. Interrupted work is reconciled on restart and
+can resume from partial files. A browser dropdown can pass one of yt-dlp's supported
+browser identifiers to `--cookies-from-browser`; JiveFetch never copies cookie values.
+The default output remains the platform Downloads directory plus `JiveFetch`.
 
 ## Product goals
 
@@ -100,6 +103,7 @@ documented in [Architecture](docs/architecture.md).
 - [Change log](CHANGES.md)
 - [v0.1.1 release notes](docs/releases/v0.1.1.md)
 - [v0.2.0 release notes](docs/releases/v0.2.0.md)
+- [v0.3.0 release notes](docs/releases/v0.3.0.md)
 
 ## Run locally on macOS
 

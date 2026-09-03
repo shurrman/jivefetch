@@ -8,13 +8,15 @@ JiveFetch 是一款本地优先、跨平台的桌面媒体下载管理器，用�
 目标技术栈为 Tauri 2、Rust、React/TypeScript，以及受管理的 `yt-dlp`、
 `ffmpeg`/`ffprobe` 和可选的 `aria2`。
 
-`0.2.0` 是可运行的设置与实时队列预览版：它包含 Tauri 桌面外壳、英语、俄语和
+`0.3.0` 是可运行的格式选择与实时队列预览版：它包含 Tauri 桌面外壳、英语、俄语和
 简体中文界面，以及由 Rust 管理的 SQLite 队列。用户可以添加经过验证的 HTTP(S)
 链接，通过本机安装的 `yt-dlp` 和 FFmpeg 下载，选择 1–10 或自定义的有界并发数，
 设置全局速度预算与输出目录，并切换系统、深色或浅色主题。队列会显示进度、速度、
-ETA、当前与总大小；默认目录仍为系统 Downloads 下的 `JiveFetch`。
-浏览器下拉框会把 yt-dlp 支持的浏览器标识传给 `--cookies-from-browser`；JiveFetch
-不会复制 Cookie 值。
+ETA、当前与总大小。实时 probe 会列出来源实际提供的视频格式、码率、编解码器、FPS、
+容器和估算大小，默认仍选择最高质量。任务 URL 保留非秘密查询参数；右键菜单包含启动、
+停止、暂停、复制 URL 和移除。默认目录仍为系统 Downloads 下的 `JiveFetch`。浏览器
+下拉框会把 yt-dlp 支持的浏览器标识传给 `--cookies-from-browser`；JiveFetch 不会复制
+Cookie 值。
 
 ## 产品目标
 
@@ -83,6 +85,7 @@ README.*.md       多语言项目入口
 - [变更记录](CHANGES.zh-CN.md)
 - [v0.1.1 发布说明](docs/releases/v0.1.1.zh-CN.md)
 - [v0.2.0 发布说明](docs/releases/v0.2.0.zh-CN.md)
+- [v0.3.0 发布说明](docs/releases/v0.3.0.zh-CN.md)
 
 ## 在 macOS 本地运行
 

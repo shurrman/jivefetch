@@ -187,6 +187,13 @@ optional and activated only when its capabilities and requested protocol match.
 Engine output parsers accept versioned JSON/progress templates where possible. Text
 parsing is isolated, fixture-tested, and treated as untrusted input.
 
+The `0.3.0` slice implements a bounded single-URL JSON probe through the same supervised
+process boundary and browser-cookie selector used by downloads. React receives normalized
+video-format metadata, hides internal format IDs and duplicate-looking choices without a
+size estimate, and sends back only the selected validated selector. The selector is stored
+with the task and later becomes a typed `--format` argument. Download plans explicitly pass
+`--progress`, because yt-dlp's final-path printing can otherwise suppress progress output.
+
 ## 8. Process supervisor
 
 Every attempt receives an ownership container before useful work begins:

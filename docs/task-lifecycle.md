@@ -161,12 +161,16 @@ them for UI display. Durable checkpoints are stored at phase boundaries and a bo
 interval, carrying downloaded bytes, total estimate, speed, ETA, fragment counts,
 and last safe event time.
 
-The `0.2.0` UI requests an authoritative queue snapshot every five seconds and keeps
+The `0.3.0` UI requests an authoritative queue snapshot every five seconds and keeps
 manual refresh available. Blue, green, and red progress fills supplement explicit text
 states for active, completed, and failed/interrupted work.
 
 A checkpoint is informational; files and engine resume behavior remain the source of
 truth for resumability. A 100% progress event alone never marks a task completed.
+Completion additionally requires a verified non-empty regular output file inside the
+configured directory. Its actual size is persisted, and startup repairs legacy zero-byte
+completed metrics from the same verified file. Right-click task actions remain projections
+of the same revision-checked Start/Stop/Pause/Remove transitions; Copy URL does not mutate state.
 
 ## 10. Concurrency races to test
 

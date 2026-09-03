@@ -80,8 +80,11 @@ Partial 重用要求 destination/template/source/format/engine fingerprint 兼�
 
 UI progress 合并，checkpoint 只在有界间隔和 phase boundary 持久化；
 100% progress 不等于完成。
-`0.2.0` UI 每五秒请求一次 authoritative snapshot。蓝色、绿色和红色进度填充配合
+`0.3.0` UI 每五秒请求一次 authoritative snapshot。蓝色、绿色和红色进度填充配合
 明确文本状态，分别表示 active、completed 与 failed/interrupted。
+完成还要求配置目录内存在经过验证的非空普通文件。实际大小会持久保存，startup 会用
+同一个已验证文件修复旧 completed 任务的零字节指标。右键任务操作仍投影到同一组经过
+revision 检查的 Start/Stop/Pause/Remove 状态转换；Copy URL 不改变状态。
 
 ## 10. 必须测试的 concurrency races
 

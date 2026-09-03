@@ -143,6 +143,13 @@ syntax. `yt-dlp` adapter владеет extractor/format behavior; прямой 
 позже получить отдельный `ffmpeg` adapter. `aria2` опционален. Parsers используют versioned
 JSON/progress templates, а text input изолирован, fixture-tested и недоверен.
 
+Срез `0.3.0` выполняет ограниченный JSON probe одного URL через тот же supervised process
+boundary и browser-cookie selector, что и загрузка. React получает normalized metadata
+видеоформатов, скрывает внутренние format ID и похожие на дубликаты варианты без оценки
+размера, а обратно передаёт только выбранный проверенный selector. Он хранится вместе с
+задачей и становится типизированным аргументом `--format`. Download plan явно передаёт
+`--progress`, потому что вывод финального пути может иначе включить quiet behavior yt-dlp.
+
 ## 8. Process supervisor
 
 До полезной работы attempt получает ownership container: на macOS/Linux — новая
