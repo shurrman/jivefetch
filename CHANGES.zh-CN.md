@@ -27,6 +27,8 @@
   仍是独立的 production gate。
 - 新增 EN/RU/简体中文 macOS 安装说明：先验证 checksum，再为当前未签名应用创建本地
   ad-hoc 签名，并仅移除该应用的 quarantine 属性。
+- 三种 release notes 翻译现在嵌入同一个 GitHub Release 页面，并使用页面内语言导航；
+  切换语言后仍可看到共用的 Assets 区域。
 
 ### 指标
 

@@ -144,6 +144,10 @@ not certification or production readiness. Unsigned/unnotarized assets must be c
 out explicitly and must not claim production support. A fully supported production
 release must satisfy every gate below.
 
+GitHub release descriptions embed English, Russian, and Simplified Chinese as in-page
+sections. Their language navigation uses anchors on the same release page so switching
+language preserves access to the shared Assets block.
+
 A target artifact is releasable only when:
 
 - frontend and Rust formatting/lint/tests pass;

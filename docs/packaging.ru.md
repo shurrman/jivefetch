@@ -76,6 +76,10 @@ production readiness. Для unsigned/unnotarized artifacts это явно ук
 заявления production support. Полноценный поддерживаемый production-релиз обязан пройти
 все gate ниже.
 
+Описание GitHub release содержит English, Русский и 简体中文 как секции одной страницы.
+Переключатель языков использует внутренние anchors, поэтому после выбора перевода общий
+блок Assets остаётся доступен.
+
 Frontend/Rust checks; migration/crash suite; owned process tree; cookie secret tests;
 engine discovery/rollback; installer lifecycle; signing/notarization; SBOM/licenses;
 clean-machine probe/download/postprocess. Gate проходит отдельно на каждой заявленной ОС.

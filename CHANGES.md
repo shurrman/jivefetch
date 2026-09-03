@@ -33,6 +33,8 @@ This file records validated project-level changes and before/after metrics.
 - Added checksum-first macOS installation instructions in English, Russian, and
   Simplified Chinese for locally ad-hoc signing and narrowly removing quarantine from
   the current unsigned application.
+- Kept release downloads visible while switching language by embedding all three
+  translations in one GitHub release description with in-page language navigation.
 
 ### Metrics
 

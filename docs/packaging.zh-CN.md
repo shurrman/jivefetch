@@ -71,6 +71,9 @@ lockfile/Actions SHA，最小 CI 权限，生成 SBOM、checksum 和 provenance�
 artifact 必须明确说明，并且不得宣称 production support。完整支持的 production release
 必须通过以下全部 gate。
 
+GitHub release 描述在同一页面嵌入 English、Русский 和简体中文三个部分。语言导航使用
+页面内 anchor，因此切换翻译后仍可访问共用的 Assets 区域。
+
 每个 target 必须通过 frontend/Rust、migration/crash、owned process tree、Cookie secret、
 engine rollback、installer lifecycle、signature/notarization、SBOM/license 和 clean-machine
 probe/download/postprocess gate。
