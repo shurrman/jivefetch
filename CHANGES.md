@@ -14,6 +14,10 @@ This file records validated project-level changes and before/after metrics.
   launch, and engine updates.
 - Made the cross-platform engine prerequisite and installation-guide link prominent at
   the beginning of every README translation.
+- Added a language-neutral README hero that shows the user-facing download queue,
+  progress states, media formats, and cross-device use without third-party branding.
+- Reworked every README into a user-first sequence: what JiveFetch provides, followed
+  by the requirements, platform packages, and installation links.
 
 ### Fixed
 
@@ -27,6 +31,8 @@ This file records validated project-level changes and before/after metrics.
 
 - Documentation: 48 to 51 tracked Markdown files and 16 to 17 validated
   EN/RU/Simplified Chinese sets.
+- Combined README length: 389 to 93 lines; architecture and development details remain
+  in the dedicated documents instead of the product entry page.
 - Release navigation: 3 ambiguous listing-relative anchors to 3 explicit tag-page
   anchors, validated by the release-note checker.
 
