@@ -48,4 +48,23 @@ export interface AppSettings {
   outputDirectory: string;
 }
 
+export interface MediaFormat {
+  selector: string;
+  formatId: string;
+  width: number | null;
+  height: number | null;
+  fps: number | null;
+  videoCodec: string | null;
+  extension: string | null;
+  bitrateKbps: number | null;
+  fileSize: number | null;
+  hasAudio: boolean;
+}
+
+export interface MediaProbe {
+  title: string;
+  duration: number | null;
+  formats: MediaFormat[];
+}
+
 export type Theme = "system" | "light" | "dark";

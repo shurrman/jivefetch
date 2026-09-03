@@ -7,13 +7,15 @@ use std::{
 };
 
 use crate::{
-    model::{EngineInfo, EngineStatus},
+    model::{EngineInfo, EngineStatus, MediaFormat, MediaProbe},
     process_supervisor::{OutputStream, SupervisedProcess},
 };
 
 const PROGRESS_PREFIX: &str = "__JIVEFETCH_PROGRESS__";
 const PHASE_PREFIX: &str = "__JIVEFETCH_PHASE__";
 const FILE_PREFIX: &str = "__JIVEFETCH_FILE__";
+const PROBE_MAX_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
+const PROBE_TIMEOUT: Duration = Duration::from_secs(45);
 
 #[derive(Debug, Clone)]
 pub struct EngineBinary {
@@ -69,6 +71,7 @@ impl EngineRegistry {
         output_directory: &Path,
         speed_limit_bytes_per_second: Option<u64>,
         browser_for_cookies: Option<&str>,
+        format_selector: Option<&str>,
     ) -> Result<ExecutionPlan, String> {
         let yt_dlp = self
             .yt_dlp
@@ -83,6 +86,7 @@ impl EngineRegistry {
             "--no-playlist".to_string(),
             "--newline".to_string(),
             "--no-color".to_string(),
+            "--progress".to_string(),
             "--progress-delta".to_string(),
             "0.5".to_string(),
             "--progress-template".to_string(),
@@ -108,7 +112,9 @@ impl EngineRegistry {
         }
         args.extend([
             "--format".to_string(),
-            "bestvideo*+bestaudio/best".to_string(),
+            format_selector
+                .unwrap_or("bestvideo*+bestaudio/best")
+                .to_string(),
             "--ffmpeg-location".to_string(),
             ffmpeg.path.to_string_lossy().into_owned(),
             "--".to_string(),
@@ -122,6 +128,165 @@ impl EngineRegistry {
             engine_version: yt_dlp.version.clone(),
         })
     }
+
+    pub fn probe_formats(
+        &self,
+        url: &str,
+        output_directory: &Path,
+        browser_for_cookies: Option<&str>,
+    ) -> Result<MediaProbe, String> {
+        let yt_dlp = self
+            .yt_dlp
+            .as_ref()
+            .ok_or_else(|| "ytDlpMissing".to_string())?;
+        let mut args = vec![
+            "--ignore-config".to_string(),
+            "--no-playlist".to_string(),
+            "--no-color".to_string(),
+            "--no-warnings".to_string(),
+            "--skip-download".to_string(),
+            "--dump-single-json".to_string(),
+        ];
+        if let Some(browser) = browser_for_cookies {
+            args.extend(["--cookies-from-browser".to_string(), browser.to_string()]);
+        }
+        args.extend(["--".to_string(), url.to_string()]);
+
+        let mut process = SupervisedProcess::spawn_with_output_limits(
+            &yt_dlp.path,
+            &args,
+            output_directory,
+            PROBE_MAX_OUTPUT_BYTES,
+            8,
+        )
+        .map_err(|_| "engineSpawnFailed".to_string())?;
+        let deadline = Instant::now() + PROBE_TIMEOUT;
+        let mut output = String::new();
+
+        loop {
+            collect_probe_output(&process, &mut output);
+            match process.try_wait() {
+                Ok(Some(status)) => {
+                    thread::sleep(Duration::from_millis(50));
+                    collect_probe_output(&process, &mut output);
+                    if !status.success() {
+                        return Err("probeFailed".to_string());
+                    }
+                    return parse_probe_json(&output);
+                }
+                Ok(None) if Instant::now() < deadline => {
+                    thread::sleep(Duration::from_millis(50));
+                }
+                Ok(None) => {
+                    let _ = process.terminate_owned_tree(Duration::from_secs(2));
+                    return Err("probeTimedOut".to_string());
+                }
+                Err(_) => return Err("probeFailed".to_string()),
+            }
+        }
+    }
+}
+
+fn collect_probe_output(process: &SupervisedProcess, output: &mut String) {
+    for line in process.drain_output() {
+        if line.stream == OutputStream::Stdout {
+            output.push_str(&line.text);
+            output.push('\n');
+        }
+    }
+}
+
+fn parse_probe_json(output: &str) -> Result<MediaProbe, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(output.trim()).map_err(|_| "probeOutputInvalid".to_string())?;
+    let title = value
+        .get("title")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("Media")
+        .to_string();
+    let duration = positive_f64(value.get("duration"));
+    let mut formats = value
+        .get("formats")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(normalize_format)
+        .collect::<Vec<_>>();
+    formats.sort_by(|left, right| {
+        right
+            .height
+            .cmp(&left.height)
+            .then_with(|| compare_optional_f64(right.bitrate_kbps, left.bitrate_kbps))
+            .then_with(|| compare_optional_f64(right.fps, left.fps))
+            .then_with(|| left.format_id.cmp(&right.format_id))
+    });
+    formats.dedup_by(|left, right| left.selector == right.selector);
+    formats.truncate(100);
+    if formats.is_empty() {
+        return Err("noFormats".to_string());
+    }
+    Ok(MediaProbe {
+        title,
+        duration,
+        formats,
+    })
+}
+
+fn normalize_format(value: &serde_json::Value) -> Option<MediaFormat> {
+    let format_id = value.get("format_id")?.as_str()?.trim();
+    if format_id.is_empty()
+        || format_id.len() > 128
+        || !format_id
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || "._-".contains(character))
+    {
+        return None;
+    }
+    let video_codec = optional_string(value.get("vcodec"));
+    if video_codec.as_deref().is_none_or(|codec| codec == "none") {
+        return None;
+    }
+    let has_audio = optional_string(value.get("acodec")).is_some_and(|codec| codec != "none");
+    let selector = if has_audio {
+        format_id.to_string()
+    } else {
+        format!("{format_id}+bestaudio/{format_id}/best")
+    };
+    Some(MediaFormat {
+        selector,
+        format_id: format_id.to_string(),
+        width: positive_u64(value.get("width")),
+        height: positive_u64(value.get("height")),
+        fps: positive_f64(value.get("fps")),
+        video_codec,
+        extension: optional_string(value.get("ext")),
+        bitrate_kbps: positive_f64(value.get("tbr")).or_else(|| positive_f64(value.get("vbr"))),
+        file_size: positive_u64(value.get("filesize"))
+            .or_else(|| positive_u64(value.get("filesize_approx"))),
+        has_audio,
+    })
+}
+
+fn optional_string(value: Option<&serde_json::Value>) -> Option<String> {
+    value?
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn positive_f64(value: Option<&serde_json::Value>) -> Option<f64> {
+    value?
+        .as_f64()
+        .filter(|value| value.is_finite() && *value > 0.0)
+}
+
+fn positive_u64(value: Option<&serde_json::Value>) -> Option<u64> {
+    value?.as_u64().filter(|value| *value > 0)
+}
+
+fn compare_optional_f64(left: Option<f64>, right: Option<f64>) -> std::cmp::Ordering {
+    left.partial_cmp(&right)
+        .unwrap_or(std::cmp::Ordering::Equal)
 }
 
 pub fn parse_engine_line(stream: OutputStream, line: &str) -> Option<EngineEvent> {
@@ -151,13 +316,16 @@ pub fn parse_engine_line(stream: OutputStream, line: &str) -> Option<EngineEvent
     None
 }
 
-pub fn verified_output_path(path: &Path, output_directory: &Path) -> Option<String> {
+pub fn verified_output_file(path: &Path, output_directory: &Path) -> Option<(String, i64)> {
     let canonical_output = output_directory.canonicalize().ok()?;
     let canonical_path = path.canonicalize().ok()?;
-    canonical_path
-        .strip_prefix(canonical_output)
-        .ok()
-        .map(|_| canonical_path.to_string_lossy().into_owned())
+    canonical_path.strip_prefix(canonical_output).ok()?;
+    let metadata = canonical_path.metadata().ok()?;
+    let size = i64::try_from(metadata.len()).ok()?;
+    if !metadata.is_file() || size <= 0 {
+        return None;
+    }
+    Some((canonical_path.to_string_lossy().into_owned(), size))
 }
 
 fn parse_i64(value: Option<&str>) -> Option<i64> {
@@ -249,7 +417,7 @@ fn read_version(
         lines.extend(process.drain_output().map(|line| line.text));
         match process.try_wait() {
             Ok(Some(status)) if status.success() => {
-                let drain_deadline = Instant::now() + Duration::from_millis(150);
+                let drain_deadline = Instant::now() + Duration::from_secs(1);
                 while Instant::now() < drain_deadline {
                     lines.extend(process.drain_output().map(|line| line.text));
                     if !lines.is_empty() {
@@ -281,11 +449,14 @@ fn concise_version(line: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{fs, path::PathBuf};
 
     use crate::process_supervisor::OutputStream;
 
-    use super::{concise_version, parse_engine_line, EngineBinary, EngineEvent, EngineRegistry};
+    use super::{
+        concise_version, parse_engine_line, parse_probe_json, verified_output_file, EngineBinary,
+        EngineEvent, EngineRegistry,
+    };
 
     #[test]
     fn keeps_engine_versions_concise_for_the_header() {
@@ -321,6 +492,28 @@ mod tests {
     }
 
     #[test]
+    fn verifies_only_non_empty_regular_output_files_inside_the_download_directory() {
+        let output = tempfile::tempdir().unwrap();
+        let file = output.path().join("video.webm");
+        fs::write(&file, b"media").unwrap();
+        assert_eq!(
+            verified_output_file(&file, output.path()),
+            Some((
+                file.canonicalize().unwrap().to_string_lossy().into_owned(),
+                5
+            ))
+        );
+
+        let empty = output.path().join("empty.webm");
+        fs::File::create(&empty).unwrap();
+        assert_eq!(verified_output_file(&empty, output.path()), None);
+        assert_eq!(verified_output_file(output.path(), output.path()), None);
+
+        let outside = tempfile::NamedTempFile::new().unwrap();
+        assert_eq!(verified_output_file(outside.path(), output.path()), None);
+    }
+
+    #[test]
     fn adds_the_configured_global_speed_limit_without_a_shell() {
         let registry = EngineRegistry {
             yt_dlp: Some(EngineBinary {
@@ -338,6 +531,7 @@ mod tests {
                 &PathBuf::from("/tmp/downloads"),
                 Some(524_288),
                 Some("firefox"),
+                None,
             )
             .unwrap();
         assert!(plan
@@ -348,6 +542,60 @@ mod tests {
             .args
             .windows(2)
             .any(|args| args == ["--cookies-from-browser", "firefox"]));
+        assert!(plan.args.iter().any(|argument| argument == "--progress"));
+        assert!(plan
+            .args
+            .windows(2)
+            .any(|args| args == ["--format", "bestvideo*+bestaudio/best"]));
         assert_eq!(plan.args.last().unwrap(), "https://example.com/video?id=1");
+    }
+
+    #[test]
+    fn uses_a_selected_source_format_and_normalizes_probe_metadata() {
+        let registry = EngineRegistry {
+            yt_dlp: Some(EngineBinary {
+                path: PathBuf::from("yt-dlp"),
+                version: "test".to_string(),
+            }),
+            ffmpeg: Some(EngineBinary {
+                path: PathBuf::from("ffmpeg"),
+                version: "test".to_string(),
+            }),
+        };
+        let plan = registry
+            .download_plan(
+                "https://example.com/video",
+                &PathBuf::from("/tmp/downloads"),
+                None,
+                None,
+                Some("137+bestaudio/137/best"),
+            )
+            .unwrap();
+        assert!(plan
+            .args
+            .windows(2)
+            .any(|args| { args == ["--format", "137+bestaudio/137/best"] }));
+
+        let probe = parse_probe_json(
+            r#"{
+                "title": "Fixture",
+                "duration": 12.5,
+                "formats": [
+                    {"format_id":"audio","vcodec":"none","acodec":"opus","abr":128},
+                    {"format_id":"22","width":1280,"height":720,"fps":30,"vcodec":"avc1.64001F","acodec":"mp4a.40.2","ext":"mp4","tbr":1800,"filesize":123456},
+                    {"format_id":"137","width":1920,"height":1080,"fps":60,"vcodec":"avc1.640028","acodec":"none","ext":"mp4","vbr":4200,"filesize_approx":654321}
+                ]
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(probe.title, "Fixture");
+        assert_eq!(probe.duration, Some(12.5));
+        assert_eq!(probe.formats.len(), 2);
+        assert_eq!(probe.formats[0].format_id, "137");
+        assert_eq!(probe.formats[0].selector, "137+bestaudio/137/best");
+        assert_eq!(probe.formats[0].bitrate_kbps, Some(4200.0));
+        assert!(!probe.formats[0].has_audio);
+        assert_eq!(probe.formats[1].selector, "22");
+        assert!(probe.formats[1].has_audio);
     }
 }

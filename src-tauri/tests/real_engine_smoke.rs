@@ -102,7 +102,7 @@ fn downloads_local_fixture_through_the_real_scheduler() {
 
     let server = MediaServer::start(fs::read(&fixture).unwrap());
     let runtime = SchedulerRuntime::new(directory.path().join("queue.sqlite3"), output).unwrap();
-    let task = runtime.add_task(&server.url()).unwrap();
+    let task = runtime.add_task(&server.url(), None).unwrap();
     let deadline = Instant::now() + Duration::from_secs(30);
 
     while Instant::now() < deadline {
@@ -115,7 +115,10 @@ fn downloads_local_fixture_through_the_real_scheduler() {
         match current.state.as_str() {
             "completed" => {
                 let output_path = current.output_path.expect("completed output path");
-                assert!(std::path::Path::new(&output_path).is_file());
+                let size = fs::metadata(&output_path).unwrap().len() as i64;
+                assert!(size > 0);
+                assert_eq!(current.downloaded_bytes, size);
+                assert_eq!(current.total_bytes, Some(size));
                 return;
             }
             "failed" => panic!("engine failed with {:?}", current.error_code),

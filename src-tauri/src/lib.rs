@@ -9,7 +9,7 @@ pub mod process_supervisor;
 pub mod scheduler;
 pub mod storage;
 
-use model::{AppSettings, EngineStatus, QueueTask};
+use model::{AppSettings, EngineStatus, MediaProbe, QueueTask};
 use scheduler::SchedulerRuntime;
 
 const DATABASE_FILE: &str = "jivefetch.sqlite3";
@@ -25,6 +25,23 @@ fn validate_url(value: &str) -> Result<String, String> {
         return Err("missingHost".to_string());
     }
     Ok(trimmed.to_string())
+}
+
+fn validate_format_selector(value: Option<String>) -> Result<Option<String>, String> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let value = value.trim();
+    if value.is_empty()
+        || value.len() > 256
+        || value.starts_with('-')
+        || !value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || "._+-/*".contains(character))
+    {
+        return Err("invalidFormatSelection".to_string());
+    }
+    Ok(Some(value.to_string()))
 }
 
 #[tauri::command]
@@ -51,8 +68,25 @@ fn update_settings(
 }
 
 #[tauri::command]
-fn add_task(url: String, runtime: State<'_, SchedulerRuntime>) -> Result<QueueTask, String> {
-    runtime.add_task(&validate_url(&url)?)
+async fn probe_url(
+    url: String,
+    runtime: State<'_, SchedulerRuntime>,
+) -> Result<MediaProbe, String> {
+    let url = validate_url(&url)?;
+    let runtime = runtime.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || runtime.probe_formats(&url))
+        .await
+        .map_err(|_| "schedulerError".to_string())?
+}
+
+#[tauri::command]
+fn add_task(
+    url: String,
+    format_selector: Option<String>,
+    runtime: State<'_, SchedulerRuntime>,
+) -> Result<QueueTask, String> {
+    let format_selector = validate_format_selector(format_selector)?;
+    runtime.add_task(&validate_url(&url)?, format_selector.as_deref())
 }
 
 #[tauri::command]
@@ -98,6 +132,7 @@ pub fn run() {
             engine_status,
             get_settings,
             update_settings,
+            probe_url,
             add_task,
             task_action,
             remove_task
@@ -114,7 +149,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_url;
+    use super::{validate_format_selector, validate_url};
 
     #[test]
     fn accepts_http_urls_and_rejects_shell_like_input() {
@@ -125,5 +160,16 @@ mod tests {
         assert!(validate_url("file:///etc/passwd").is_err());
         assert!(validate_url("https://example.com; touch /tmp/nope").is_err());
         assert!(validate_url("not a url").is_err());
+    }
+
+    #[test]
+    fn accepts_only_bounded_typed_format_selectors() {
+        assert_eq!(validate_format_selector(None).unwrap(), None);
+        assert_eq!(
+            validate_format_selector(Some("137+bestaudio/137/best".to_string())).unwrap(),
+            Some("137+bestaudio/137/best".to_string())
+        );
+        assert!(validate_format_selector(Some("--exec=touch".to_string())).is_err());
+        assert!(validate_format_selector(Some("best[height>720]".to_string())).is_err());
     }
 }

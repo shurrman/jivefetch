@@ -7,7 +7,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::model::{AppSettings, AttemptReservation, ControlIntent, QueueTask};
 
-const SCHEMA_VERSION: i64 = 4;
+const SCHEMA_VERSION: i64 = 5;
 
 pub struct ActionOutcome {
     pub task: QueueTask,
@@ -242,13 +242,22 @@ pub fn load_task(connection: &Connection, task_id: &str) -> Result<QueueTask, St
 }
 
 pub fn insert_task(connection: &Connection, url: &str) -> Result<QueueTask, String> {
+    insert_task_with_format(connection, url, None)
+}
+
+pub fn insert_task_with_format(
+    connection: &Connection,
+    url: &str,
+    format_selector: Option<&str>,
+) -> Result<QueueTask, String> {
     let timestamp = unix_timestamp()?;
     let id = random_id(connection)?;
     connection
         .execute(
-            "INSERT INTO tasks (id, url, state, revision, created_at, updated_at)
-             VALUES (?1, ?2, 'queued', 0, ?3, ?3)",
-            params![id, url, timestamp],
+            "INSERT INTO tasks
+             (id, url, state, revision, created_at, updated_at, format_selector)
+             VALUES (?1, ?2, 'queued', 0, ?3, ?3, ?4)",
+            params![id, url, timestamp, format_selector],
         )
         .map_err(|_| "storageError".to_string())?;
     load_task(connection, &id)
@@ -330,14 +339,20 @@ pub fn reserve_next_attempt(
         .map_err(|_| "storageError".to_string())?;
     let candidate = transaction
         .query_row(
-            "SELECT id, url FROM tasks WHERE state = 'queued'
+            "SELECT id, url, format_selector FROM tasks WHERE state = 'queued'
              ORDER BY created_at ASC, id ASC LIMIT 1",
             [],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            },
         )
         .optional()
         .map_err(|_| "storageError".to_string())?;
-    let Some((task_id, url)) = candidate else {
+    let Some((task_id, url, format_selector)) = candidate else {
         return Ok(None);
     };
     let attempt_id = random_id(&transaction)?;
@@ -368,6 +383,7 @@ pub fn reserve_next_attempt(
         task_id,
         attempt_id,
         url,
+        format_selector,
     }))
 }
 
@@ -430,11 +446,21 @@ pub fn mark_postprocessing(connection: &Connection, task_id: &str) -> Result<(),
     Ok(())
 }
 
-pub fn record_output(connection: &Connection, task_id: &str, path: &str) -> Result<(), String> {
+pub fn record_output(
+    connection: &Connection,
+    task_id: &str,
+    path: &str,
+    size: i64,
+) -> Result<(), String> {
+    if size <= 0 {
+        return Err("outputMissing".to_string());
+    }
     connection
         .execute(
-            "UPDATE tasks SET output_path = ?1 WHERE id = ?2",
-            params![path, task_id],
+            "UPDATE tasks SET output_path = ?1, downloaded_bytes = ?2,
+                    total_bytes = ?2, progress = 1.0
+             WHERE id = ?3",
+            params![path, size, task_id],
         )
         .map_err(|_| "storageError".to_string())?;
     Ok(())
@@ -559,19 +585,23 @@ fn migrate(connection: &Connection) -> Result<(), String> {
             .map_err(|_| "storageError".to_string())?;
     } else if version < 2 {
         migrate_legacy_tasks(connection)?;
-    } else if version < 3 {
-        connection
-            .execute_batch(&format!(
-                "{} PRAGMA user_version = 3;",
-                settings_schema_v3_sql()
-            ))
-            .map_err(|_| "storageError".to_string())?;
-        migrate_browser_cookie_setting(connection)?;
-    } else if version < SCHEMA_VERSION {
-        migrate_browser_cookie_setting(connection)?;
     } else {
+        if version < 3 {
+            connection
+                .execute_batch(settings_schema_v3_sql())
+                .map_err(|_| "storageError".to_string())?;
+        }
+        if version < 4 {
+            migrate_browser_cookie_setting(connection)?;
+        }
+        if version < 5 {
+            migrate_task_format_selection(connection)?;
+        }
         connection
             .execute_batch(schema_sql())
+            .map_err(|_| "storageError".to_string())?;
+        connection
+            .pragma_update(None, "user_version", SCHEMA_VERSION)
             .map_err(|_| "storageError".to_string())?;
     }
     Ok(())
@@ -596,9 +626,26 @@ fn migrate_browser_cookie_setting(connection: &Connection) -> Result<(), String>
             )
             .map_err(|_| "storageError".to_string())?;
     }
-    connection
-        .pragma_update(None, "user_version", SCHEMA_VERSION)
-        .map_err(|_| "storageError".to_string())
+    Ok(())
+}
+
+fn migrate_task_format_selection(connection: &Connection) -> Result<(), String> {
+    let has_column: bool = connection
+        .query_row(
+            "SELECT EXISTS(
+                SELECT 1 FROM pragma_table_info('tasks')
+                WHERE name = 'format_selector'
+            )",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| "storageError".to_string())?;
+    if !has_column {
+        connection
+            .execute("ALTER TABLE tasks ADD COLUMN format_selector TEXT", [])
+            .map_err(|_| "storageError".to_string())?;
+    }
+    Ok(())
 }
 
 fn migrate_legacy_tasks(connection: &Connection) -> Result<(), String> {
@@ -640,7 +687,8 @@ fn schema_sql() -> &'static str {
         eta INTEGER,
         output_path TEXT,
         error_code TEXT,
-        attempt_count INTEGER NOT NULL DEFAULT 0
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        format_selector TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_tasks_dispatch
         ON tasks(state, created_at ASC, id ASC);
@@ -681,8 +729,9 @@ mod tests {
     use rusqlite::Connection;
 
     use super::{
-        apply_action, insert_task, load_settings, open_database, prepare_shutdown,
-        recover_interrupted, save_settings, settle_orphaned_control,
+        apply_action, insert_task, insert_task_with_format, load_settings, open_database,
+        prepare_shutdown, recover_interrupted, reserve_next_attempt, save_settings,
+        settle_orphaned_control,
     };
     use crate::model::{AppSettings, ControlIntent};
 
@@ -772,6 +821,61 @@ mod tests {
         assert_eq!(settings.speed_limit_bytes_per_second, Some(512 * 1024));
         assert_eq!(settings.browser_for_cookies, None);
         assert_eq!(settings.output_directory, "/tmp/JiveFetch");
+    }
+
+    #[test]
+    fn migrates_v4_queue_and_reserves_the_selected_format() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("queue.sqlite3");
+        {
+            let connection = Connection::open(&path).unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TABLE tasks (
+                        id TEXT PRIMARY KEY,
+                        url TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        revision INTEGER NOT NULL DEFAULT 0,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        progress REAL NOT NULL DEFAULT 0,
+                        downloaded_bytes INTEGER NOT NULL DEFAULT 0,
+                        total_bytes INTEGER,
+                        speed REAL,
+                        eta INTEGER,
+                        output_path TEXT,
+                        error_code TEXT,
+                        attempt_count INTEGER NOT NULL DEFAULT 0
+                     );
+                     CREATE TABLE app_settings (
+                        id INTEGER PRIMARY KEY CHECK (id = 1),
+                        concurrency INTEGER NOT NULL,
+                        speed_limit_bytes_per_second INTEGER,
+                        browser_for_cookies TEXT,
+                        output_directory TEXT NOT NULL
+                     );
+                     PRAGMA user_version = 4;",
+                )
+                .unwrap();
+        }
+
+        let mut connection = open_database(&path).unwrap();
+        let task = insert_task_with_format(
+            &connection,
+            "https://example.com/video",
+            Some("137+bestaudio/137/best"),
+        )
+        .unwrap();
+        let reservation = reserve_next_attempt(&mut connection).unwrap().unwrap();
+        assert_eq!(reservation.task_id, task.id);
+        assert_eq!(
+            reservation.format_selector.as_deref(),
+            Some("137+bestaudio/137/best")
+        );
+        let version: i64 = connection
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 5);
     }
 
     #[test]

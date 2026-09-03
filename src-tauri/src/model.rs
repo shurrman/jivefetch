@@ -48,6 +48,30 @@ pub struct AttemptReservation {
     pub task_id: String,
     pub attempt_id: String,
     pub url: String,
+    pub format_selector: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaFormat {
+    pub selector: String,
+    pub format_id: String,
+    pub width: Option<u64>,
+    pub height: Option<u64>,
+    pub fps: Option<f64>,
+    pub video_codec: Option<String>,
+    pub extension: Option<String>,
+    pub bitrate_kbps: Option<f64>,
+    pub file_size: Option<u64>,
+    pub has_audio: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaProbe {
+    pub title: String,
+    pub duration: Option<f64>,
+    pub formats: Vec<MediaFormat>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

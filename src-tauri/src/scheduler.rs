@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         mpsc::{self, Sender},
         Arc, Mutex,
@@ -11,8 +11,8 @@ use std::{
 };
 
 use crate::{
-    engine::{parse_engine_line, verified_output_path, EngineEvent, EngineRegistry},
-    model::{AppSettings, AttemptReservation, ControlIntent, EngineStatus, QueueTask},
+    engine::{parse_engine_line, verified_output_file, EngineEvent, EngineRegistry},
+    model::{AppSettings, AttemptReservation, ControlIntent, EngineStatus, MediaProbe, QueueTask},
     process_supervisor::SupervisedProcess,
     storage,
 };
@@ -47,6 +47,7 @@ impl SchedulerRuntime {
         validate_settings(&settings)?;
         let configured_output = PathBuf::from(&settings.output_directory);
         fs::create_dir_all(&configured_output).map_err(|_| "outputDirectoryError".to_string())?;
+        reconcile_completed_output_sizes(&connection, &configured_output)?;
         let engines = EngineRegistry::discover(&configured_output);
         Ok(Self {
             inner: Arc::new(RuntimeInner {
@@ -91,8 +92,19 @@ impl SchedulerRuntime {
         self.with_database(storage::list_tasks)
     }
 
-    pub fn add_task(&self, url: &str) -> Result<QueueTask, String> {
-        let task = self.with_database(|connection| storage::insert_task(connection, url))?;
+    pub fn probe_formats(&self, url: &str) -> Result<MediaProbe, String> {
+        let settings = self.settings()?;
+        self.inner.engines.probe_formats(
+            url,
+            Path::new(&settings.output_directory),
+            settings.browser_for_cookies.as_deref(),
+        )
+    }
+
+    pub fn add_task(&self, url: &str, format_selector: Option<&str>) -> Result<QueueTask, String> {
+        let task = self.with_database(|connection| {
+            storage::insert_task_with_format(connection, url, format_selector)
+        })?;
         self.kick();
         Ok(task)
     }
@@ -263,6 +275,7 @@ fn run_attempt(
         &output_directory,
         speed_limit,
         settings.browser_for_cookies.as_deref(),
+        reservation.format_selector.as_deref(),
     ) {
         Ok(plan) => plan,
         Err(code) => {
@@ -292,6 +305,7 @@ fn run_attempt(
     let mut final_output = None;
     let mut exit_success = false;
     let mut process_error = false;
+    let mut storage_error = false;
 
     loop {
         drain_engine_events(runtime, reservation, &process, &mut final_output);
@@ -322,15 +336,19 @@ fn run_attempt(
 
     let verified_output = final_output
         .as_deref()
-        .and_then(|path| verified_output_path(path, &output_directory));
-    if let Some(path) = verified_output.as_deref() {
-        let _ = runtime.with_database(|connection| {
-            storage::record_output(connection, &reservation.task_id, path)
-        });
+        .and_then(|path| verified_output_file(path, &output_directory));
+    if let Some((path, size)) = verified_output.as_ref() {
+        storage_error = runtime
+            .with_database(|connection| {
+                storage::record_output(connection, &reservation.task_id, path, *size)
+            })
+            .is_err();
     }
 
-    let success = exit_success && verified_output.is_some() && !process_error;
-    let error_code = if process_error {
+    let success = exit_success && verified_output.is_some() && !process_error && !storage_error;
+    let error_code = if storage_error {
+        Some("storageError")
+    } else if process_error {
         Some("processSupervisorError")
     } else if exit_success && verified_output.is_none() {
         Some("outputMissing")
@@ -342,6 +360,34 @@ fn run_attempt(
     let _ = runtime.with_database_mut(|connection| {
         storage::finalize_attempt(connection, reservation, control, success, error_code)
     });
+}
+
+fn reconcile_completed_output_sizes(
+    connection: &rusqlite::Connection,
+    output_directory: &Path,
+) -> Result<usize, String> {
+    let mut changed = 0;
+    for task in storage::list_tasks(connection)? {
+        if task.state != "completed" {
+            continue;
+        }
+        let Some(stored_path) = task.output_path.as_deref() else {
+            continue;
+        };
+        let Some((path, size)) = verified_output_file(Path::new(stored_path), output_directory)
+        else {
+            continue;
+        };
+        if task.output_path.as_deref() == Some(path.as_str())
+            && task.downloaded_bytes == size
+            && task.total_bytes == Some(size)
+        {
+            continue;
+        }
+        storage::record_output(connection, &task.id, &path, size)?;
+        changed += 1;
+    }
+    Ok(changed)
 }
 
 fn validate_settings(settings: &AppSettings) -> Result<(), String> {
@@ -412,8 +458,10 @@ fn drain_engine_events(
 
 #[cfg(test)]
 mod tests {
-    use super::{per_attempt_speed_limit, validate_settings};
-    use crate::model::AppSettings;
+    use std::fs;
+
+    use super::{per_attempt_speed_limit, reconcile_completed_output_sizes, validate_settings};
+    use crate::{model::AppSettings, storage};
 
     fn settings() -> AppSettings {
         AppSettings {
@@ -463,5 +511,36 @@ mod tests {
         configured.concurrency = 4;
         configured.speed_limit_bytes_per_second = Some(2 * 1024 * 1024);
         assert_eq!(per_attempt_speed_limit(&configured), Some(512 * 1024));
+    }
+
+    #[test]
+    fn reconciles_zero_byte_metrics_for_a_completed_output_after_restart() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("output");
+        fs::create_dir_all(&output).unwrap();
+        let media = output.join("video.webm");
+        fs::write(&media, b"complete media").unwrap();
+
+        let connection = storage::open_database(&directory.path().join("queue.sqlite3")).unwrap();
+        let task = storage::insert_task(&connection, "https://example.com/video").unwrap();
+        connection
+            .execute(
+                "UPDATE tasks SET state = 'completed', progress = 1.0, output_path = ?1
+                 WHERE id = ?2",
+                rusqlite::params![media.to_string_lossy(), task.id],
+            )
+            .unwrap();
+
+        assert_eq!(
+            reconcile_completed_output_sizes(&connection, &output),
+            Ok(1)
+        );
+        let repaired = storage::load_task(&connection, &task.id).unwrap();
+        assert_eq!(repaired.downloaded_bytes, 14);
+        assert_eq!(repaired.total_bytes, Some(14));
+        assert_eq!(
+            reconcile_completed_output_sizes(&connection, &output),
+            Ok(0)
+        );
     }
 }

@@ -14,6 +14,7 @@ import {
   getEngineStatus,
   getSettings,
   listTasks,
+  probeMedia,
   removeTask,
   updateSettings,
 } from "./api";
@@ -21,6 +22,8 @@ import { type Language, type TranslationKey, useI18n } from "./i18n";
 import type {
   AppSettings,
   EngineStatus,
+  MediaFormat,
+  MediaProbe,
   QueueTask,
   TaskAction,
   TaskState,
@@ -55,6 +58,11 @@ const backendErrorKeys: Record<string, TranslationKey> = {
   invalidConcurrency: "invalidConcurrency",
   invalidSpeedLimit: "invalidSpeedLimit",
   invalidCookieBrowser: "invalidCookieBrowser",
+  invalidFormatSelection: "invalidFormatSelection",
+  probeFailed: "probeFailed",
+  probeTimedOut: "probeTimedOut",
+  probeOutputInvalid: "probeOutputInvalid",
+  noFormats: "noFormats",
   databaseTooNew: "databaseTooNew",
   interruptedAfterRestart: "interruptedAfterRestart",
 };
@@ -77,6 +85,7 @@ const failedStates = new Set<TaskState>(["failed", "interrupted"]);
 const concurrencyPresets = Array.from({ length: 10 }, (_, index) => index + 1);
 const speedPresets = [512 * 1024, 1024 * 1024, 2 * 1024 * 1024, 3 * 1024 * 1024];
 const themeStorageKey = "jivefetch.theme";
+const sensitiveQueryKey = /(auth|cookie|credential|key|pass|policy|secret|session|sig|token)/i;
 
 function storedTheme(): Theme {
   const value = window.localStorage.getItem(themeStorageKey);
@@ -102,10 +111,29 @@ function progressClass(state: TaskState) {
 function displayUrl(value: string) {
   try {
     const url = new URL(value);
-    return { host: url.host, path: url.pathname || "/" };
+    const parameters = new URLSearchParams();
+    for (const [key, parameterValue] of url.searchParams) {
+      parameters.append(key, sensitiveQueryKey.test(key) ? "redacted" : parameterValue);
+    }
+    const query = parameters.size > 0 ? `?${parameters.toString()}` : "";
+    return { host: url.host, path: `${url.pathname || "/"}${query}${url.hash}` };
   } catch {
     return { host: value, path: "" };
   }
+}
+
+function formatMediaOption(format: MediaFormat, locale: string) {
+  const parts: string[] = [];
+  if (format.height) parts.push(`${format.height}p`);
+  else if (format.width) parts.push(`${format.width}px`);
+  if (format.fps) parts.push(`${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(format.fps)} fps`);
+  if (format.bitrateKbps) {
+    parts.push(`${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(format.bitrateKbps / 1000)} Mbps`);
+  }
+  if (format.videoCodec) parts.push(format.videoCodec.split(".")[0].toUpperCase());
+  if (format.extension) parts.push(format.extension.toUpperCase());
+  if (format.fileSize) parts.push(`≈ ${formatBytes(format.fileSize, locale)}`);
+  return parts.join(" · ");
 }
 
 function formatBytes(value: number | null, locale: string) {
@@ -145,6 +173,11 @@ export default function App() {
   const [customConcurrency, setCustomConcurrency] = useState("11");
   const [customSpeedKiB, setCustomSpeedKiB] = useState("4096");
   const [url, setUrl] = useState("");
+  const [probe, setProbe] = useState<MediaProbe | null>(null);
+  const [probedUrl, setProbedUrl] = useState("");
+  const [selectedFormat, setSelectedFormat] = useState("");
+  const [probing, setProbing] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ taskId: string; x: number; y: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [error, setError] = useState<TranslationKey | null>(null);
@@ -197,6 +230,24 @@ export default function App() {
     window.localStorage.setItem(themeStorageKey, theme);
   }, [theme]);
 
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    const preventBrowserMenu = (event: MouseEvent) => event.preventDefault();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMenu();
+    };
+    document.addEventListener("pointerdown", closeMenu);
+    document.addEventListener("contextmenu", preventBrowserMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("blur", closeMenu);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenu);
+      document.removeEventListener("contextmenu", preventBrowserMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("blur", closeMenu);
+    };
+  }, []);
+
   const taskCount = useMemo(() => tasks.length, [tasks]);
 
   const saveSettings = async (next: AppSettings) => {
@@ -217,13 +268,37 @@ export default function App() {
     setBusy(true);
     setError(null);
     try {
-      const created = await addTask(url.trim());
+      const normalizedUrl = url.trim();
+      const formatSelector = probedUrl === normalizedUrl && selectedFormat ? selectedFormat : null;
+      const created = await addTask(normalizedUrl, formatSelector);
       setTasks((current) => [created, ...current]);
       setUrl("");
+      setProbe(null);
+      setProbedUrl("");
+      setSelectedFormat("");
     } catch (reason) {
       setError(errorKeyForReason(reason));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const inspectFormats = async () => {
+    const normalizedUrl = url.trim();
+    if (!normalizedUrl) return;
+    setProbing(true);
+    setError(null);
+    try {
+      setProbe(await probeMedia(normalizedUrl));
+      setProbedUrl(normalizedUrl);
+      setSelectedFormat("");
+    } catch (reason) {
+      setProbe(null);
+      setProbedUrl("");
+      setSelectedFormat("");
+      setError(errorKeyForReason(reason));
+    } finally {
+      setProbing(false);
     }
   };
 
@@ -244,6 +319,27 @@ export default function App() {
       setTasks((current) => current.filter((item) => item.id !== task.id));
     } catch (reason) {
       setError(errorKeyForReason(reason));
+    }
+  };
+
+  const copyTaskUrl = async (task: QueueTask) => {
+    setContextMenu(null);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(task.url);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = task.url;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        const copied = document.execCommand("copy");
+        textArea.remove();
+        if (!copied) throw new Error("clipboardUnavailable");
+      }
+    } catch {
+      setError("unexpectedError");
     }
   };
 
@@ -274,6 +370,19 @@ export default function App() {
     : settings && speedPresets.includes(settings.speedLimitBytesPerSecond ?? -1)
       ? String(settings.speedLimitBytesPerSecond)
       : "custom";
+  const contextTask = contextMenu
+    ? tasks.find((task) => task.id === contextMenu.taskId) ?? null
+    : null;
+  const canStartContextTask = contextTask
+    ? ["paused", "stopped", "failed", "interrupted"].includes(contextTask.state)
+    : false;
+  const sizedFormats = probe?.formats.filter((format) => format.fileSize !== null) ?? [];
+  const canPauseContextTask = contextTask
+    ? ["queued", "starting", "downloading", "postprocessing"].includes(contextTask.state)
+    : false;
+  const canStopContextTask = contextTask
+    ? ["queued", "starting", "downloading", "postprocessing", "pausing", "paused"].includes(contextTask.state)
+    : false;
 
   return (
     <main className="app-shell">
@@ -444,13 +553,42 @@ export default function App() {
               required
               value={url}
               placeholder={t("urlPlaceholder")}
-              onChange={(event) => setUrl(event.target.value)}
+              onChange={(event) => {
+                setUrl(event.target.value);
+                setProbe(null);
+                setProbedUrl("");
+                setSelectedFormat("");
+              }}
               autoComplete="url"
             />
-            <button className="button button-primary" type="submit" disabled={busy}>
-              {busy ? t("adding") : t("addToQueue")}
-            </button>
+            <div className="url-actions">
+              <button className="button button-ghost" type="button" disabled={probing || busy || !url.trim()} onClick={() => void inspectFormats()}>
+                {probing ? t("inspectingFormats") : t("inspectFormats")}
+              </button>
+              <button className="button button-primary" type="submit" disabled={busy || probing}>
+                {busy ? t("adding") : t("addToQueue")}
+              </button>
+            </div>
           </div>
+          {probe && probedUrl === url.trim() ? (
+            <div className="format-picker">
+              <div>
+                <strong>{probe.title}</strong>
+                {probe.duration ? <small>{formatDuration(Math.round(probe.duration))}</small> : null}
+              </div>
+              <label>
+                <span>{t("formatChoice")}</span>
+                <select value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value)}>
+                  <option value="">{t("maximumQuality")}</option>
+                  {sizedFormats.map((format) => (
+                    <option key={format.selector} value={format.selector}>
+                      {formatMediaOption(format, locale)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
         </form>
       </section>
 
@@ -483,7 +621,18 @@ export default function App() {
               const progress = Math.round(task.progress * 100);
               const taskError = task.errorCode ? backendErrorKeys[task.errorCode] : null;
               return (
-                <article className="task-card" key={task.id}>
+                <article
+                  className="task-card"
+                  key={task.id}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setContextMenu({
+                      taskId: task.id,
+                      x: Math.min(event.clientX, window.innerWidth - 220),
+                      y: Math.min(event.clientY, window.innerHeight - 230),
+                    });
+                  }}
+                >
                   <div className="task-main">
                     <span className={stateClass(task.state)}>{t(task.state)}</span>
                     <div className="task-details">
@@ -527,6 +676,22 @@ export default function App() {
           </div>
         )}
       </section>
+
+      {contextMenu && contextTask ? (
+        <div
+          className="task-context-menu"
+          role="menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <button disabled={!canStartContextTask} onClick={() => { setContextMenu(null); void runAction(contextTask, "resume"); }}>{t("startTask")}</button>
+          <button disabled={!canStopContextTask} onClick={() => { setContextMenu(null); void runAction(contextTask, "stop"); }}>{t("stop")}</button>
+          <button disabled={!canPauseContextTask} onClick={() => { setContextMenu(null); void runAction(contextTask, "pause"); }}>{t("pause")}</button>
+          <button onClick={() => void copyTaskUrl(contextTask)}>{t("copyUrl")}</button>
+          <button className="danger" disabled={!removableStates.has(contextTask.state)} onClick={() => { setContextMenu(null); void remove(contextTask); }}>{t("remove")}</button>
+        </div>
+      ) : null}
     </main>
   );
 }

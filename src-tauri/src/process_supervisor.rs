@@ -9,8 +9,8 @@ use std::{
 
 use command_group::{CommandGroup, GroupChild};
 
-const MAX_LINE_BYTES: usize = 8 * 1024;
-const OUTPUT_QUEUE_DEPTH: usize = 256;
+const DEFAULT_MAX_LINE_BYTES: usize = 8 * 1024;
+const DEFAULT_OUTPUT_QUEUE_DEPTH: usize = 256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputStream {
@@ -31,6 +31,22 @@ pub struct SupervisedProcess {
 
 impl SupervisedProcess {
     pub fn spawn(executable: &Path, args: &[String], working_directory: &Path) -> io::Result<Self> {
+        Self::spawn_with_output_limits(
+            executable,
+            args,
+            working_directory,
+            DEFAULT_MAX_LINE_BYTES,
+            DEFAULT_OUTPUT_QUEUE_DEPTH,
+        )
+    }
+
+    pub fn spawn_with_output_limits(
+        executable: &Path,
+        args: &[String],
+        working_directory: &Path,
+        max_line_bytes: usize,
+        output_queue_depth: usize,
+    ) -> io::Result<Self> {
         let mut command = Command::new(executable);
         command
             .args(args)
@@ -57,13 +73,13 @@ impl SupervisedProcess {
         let mut child = command.group_spawn()?;
         let stdout = child.inner().stdout.take();
         let stderr = child.inner().stderr.take();
-        let (sender, output) = mpsc::sync_channel(OUTPUT_QUEUE_DEPTH);
+        let (sender, output) = mpsc::sync_channel(output_queue_depth.max(1));
 
         if let Some(stdout) = stdout {
-            spawn_reader(stdout, OutputStream::Stdout, sender.clone());
+            spawn_reader(stdout, OutputStream::Stdout, sender.clone(), max_line_bytes);
         }
         if let Some(stderr) = stderr {
-            spawn_reader(stderr, OutputStream::Stderr, sender);
+            spawn_reader(stderr, OutputStream::Stderr, sender, max_line_bytes);
         }
 
         Ok(Self { child, output })
@@ -128,13 +144,17 @@ impl Drop for SupervisedProcess {
     }
 }
 
-fn spawn_reader<R>(mut reader: R, stream: OutputStream, sender: SyncSender<ProcessLine>)
-where
+fn spawn_reader<R>(
+    mut reader: R,
+    stream: OutputStream,
+    sender: SyncSender<ProcessLine>,
+    max_line_bytes: usize,
+) where
     R: Read + Send + 'static,
 {
     thread::spawn(move || {
         let mut read_buffer = [0_u8; 4096];
-        let mut pending = Vec::with_capacity(MAX_LINE_BYTES);
+        let mut pending = Vec::with_capacity(max_line_bytes);
 
         loop {
             let read = match reader.read(&mut read_buffer) {
@@ -147,7 +167,7 @@ where
                 if *byte == b'\n' {
                     send_line(&sender, stream, &pending);
                     pending.clear();
-                } else if pending.len() < MAX_LINE_BYTES {
+                } else if pending.len() < max_line_bytes {
                     pending.push(*byte);
                 }
             }
@@ -171,14 +191,19 @@ mod tests {
     use std::io::Cursor;
     use std::sync::mpsc;
 
-    use super::{spawn_reader, OutputStream, MAX_LINE_BYTES};
+    use super::{spawn_reader, OutputStream, DEFAULT_MAX_LINE_BYTES};
 
     #[test]
     fn reader_bounds_untrusted_lines() {
         let (sender, receiver) = mpsc::sync_channel(8);
-        let oversized = vec![b'x'; MAX_LINE_BYTES * 2];
-        spawn_reader(Cursor::new(oversized), OutputStream::Stdout, sender);
+        let oversized = vec![b'x'; DEFAULT_MAX_LINE_BYTES * 2];
+        spawn_reader(
+            Cursor::new(oversized),
+            OutputStream::Stdout,
+            sender,
+            DEFAULT_MAX_LINE_BYTES,
+        );
         let line = receiver.recv().unwrap();
-        assert_eq!(line.text.len(), MAX_LINE_BYTES);
+        assert_eq!(line.text.len(), DEFAULT_MAX_LINE_BYTES);
     }
 }

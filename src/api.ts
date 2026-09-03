@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppSettings, EngineStatus, QueueTask, TaskAction } from "./types";
+import type { AppSettings, EngineStatus, MediaProbe, QueueTask, TaskAction } from "./types";
 
 export function listTasks(): Promise<QueueTask[]> {
   return invoke<QueueTask[]>("list_tasks");
@@ -18,8 +18,12 @@ export function updateSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_settings", { settings });
 }
 
-export function addTask(url: string): Promise<QueueTask> {
-  return invoke<QueueTask>("add_task", { url });
+export function probeMedia(url: string): Promise<MediaProbe> {
+  return invoke<MediaProbe>("probe_url", { url });
+}
+
+export function addTask(url: string, formatSelector: string | null): Promise<QueueTask> {
+  return invoke<QueueTask>("add_task", { url, formatSelector });
 }
 
 export function actOnTask(task: QueueTask, action: TaskAction): Promise<QueueTask> {
