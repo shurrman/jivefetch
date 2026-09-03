@@ -23,6 +23,9 @@ Last updated: 2026-09-03
   is the first native release candidate for macOS, Linux, and Windows.
 - Architecture and delivery contracts are documented under `docs/`.
 - JiveFetch source is Apache-2.0. System engines are not redistributed.
+- Linux inherits `glib 0.18.5` from Tauri/GTK. `GHSA-wrw7-89jp-8q8g` affects an API
+  JiveFetch does not call; patched `glib 0.20` is incompatible with GTK `^0.18`.
+  This is accepted only for the private preview and blocks a stable release.
 
 ## Durable decisions
 

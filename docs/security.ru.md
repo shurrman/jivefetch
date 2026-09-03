@@ -71,3 +71,11 @@ deep links открывают review; auth scope видим пользовате
 Injection, fuzz path/redaction, temp ACL/permissions на каждой ОС, sentinel scans DB/logs/
 support bundle, Tauri remote-capability denial, tampered update/downgrade/rollback и
 owned-process tests. Insecure fallback блокирует release.
+
+## 11. Отслеживаемый upstream advisory
+
+Linux dependency graph получает `glib 0.18.5` через Tauri и GTK 0.18. Версия затронута
+`GHSA-wrw7-89jp-8q8g` в `VariantStrIter`; JiveFetch этот API не вызывает. Исправленный
+`glib 0.20` несовместим с текущим ограничением GTK `^0.18`, поэтому исключение временно
+разрешено только для приватного pre-release `v0.1.0`. Обновление цепочки Tauri/GTK или
+иное устранение advisory остаётся gate для stable-релиза.

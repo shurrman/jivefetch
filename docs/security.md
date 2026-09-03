@@ -158,3 +158,12 @@ unresolved glob.
 - Process ownership tests proving Stop does not affect an unrelated same-name process.
 
 Security-sensitive failures block release rather than degrading to an insecure mode.
+
+## 11. Tracked upstream advisory
+
+The Linux dependency graph currently inherits `glib 0.18.5` through Tauri and GTK
+0.18. It is affected by `GHSA-wrw7-89jp-8q8g` in `VariantStrIter`; JiveFetch does not
+call that API. The patched `glib 0.20` is incompatible with GTK's current `^0.18`
+constraint, so this is an explicit temporary exception for the private `v0.1.0`
+pre-release only. Updating the Tauri/GTK chain or otherwise removing the advisory is
+a stable-release gate.

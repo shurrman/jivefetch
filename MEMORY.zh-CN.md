@@ -20,6 +20,9 @@
   `https://github.com/shurrman/jivefetch` 已配置为 `origin`。`v0.1.0` 是面向 macOS、
   Linux 和 Windows 的首个 native release candidate。
 - JiveFetch 源代码采用 Apache-2.0；不再分发系统引擎。
+- Linux 通过 Tauri/GTK 引入 `glib 0.18.5`。`GHSA-wrw7-89jp-8q8g` 影响 JiveFetch
+  未调用的 API；已修复的 `glib 0.20` 与 GTK `^0.18` 不兼容。该例外只适用于私有
+  preview，并阻止 stable release。
 
 ## 长期决定
 

@@ -21,6 +21,9 @@
   `https://github.com/shurrman/jivefetch` настроен как `origin`. Версия `v0.1.0` —
   первый native release candidate для macOS, Linux и Windows.
 - Исходники JiveFetch — Apache-2.0; системные движки не распространяются.
+- Linux получает `glib 0.18.5` через Tauri/GTK. `GHSA-wrw7-89jp-8q8g` затрагивает API,
+  который JiveFetch не вызывает; исправленный `glib 0.20` несовместим с GTK `^0.18`.
+  Исключение допустимо только для private preview и блокирует stable-релиз.
 
 ## Устойчивые решения
 

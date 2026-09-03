@@ -71,3 +71,10 @@ URL；deep link 必须 review；认证作用域对用户可见。
 Injection、path/redaction fuzz、各 OS temp ACL/permission、sentinel secret 扫描、remote
 capability denial、tampered update/downgrade/rollback、owned process test。任何不安全
 fallback 都会阻止发布。
+
+## 11. 已跟踪的 upstream advisory
+
+Linux dependency graph 通过 Tauri 和 GTK 0.18 引入 `glib 0.18.5`，其中
+`VariantStrIter` 受 `GHSA-wrw7-89jp-8q8g` 影响；JiveFetch 不调用该 API。已修复的
+`glib 0.20` 与 GTK 当前的 `^0.18` 约束不兼容，因此只为私有 `v0.1.0` pre-release
+临时接受此例外。Stable release 前必须升级 Tauri/GTK 链或以其他方式消除该 advisory。

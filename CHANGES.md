@@ -51,3 +51,5 @@ This file records validated project-level changes and before/after metrics.
   rules that are preserved for compatibility but are not JiveFetch architecture.
 - Installer signing identities, managed sidecar distribution, FFmpeg redistribution
   review, SBOM/provenance, and clean-machine release tests are not yet complete.
+- Linux transitively uses `glib 0.18.5` through Tauri/GTK and remains flagged by
+  `GHSA-wrw7-89jp-8q8g`; the affected API is unused, but the advisory blocks stable release.

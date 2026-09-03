@@ -32,3 +32,5 @@
 ### 待完成
 
 - Installer signing identity、managed sidecar、FFmpeg 再分发审查、SBOM/provenance 和 clean-machine release test 尚未完成。
+- Linux 通过 Tauri/GTK 间接使用 `glib 0.18.5`，仍受 `GHSA-wrw7-89jp-8q8g`
+  标记；受影响 API 未被使用，但该 advisory 会阻止 stable release。

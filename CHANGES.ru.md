@@ -38,3 +38,5 @@
 
 - Не готовы signing identities, managed sidecars, проверка распространения FFmpeg,
   SBOM/provenance и clean-machine release tests.
+- Linux транзитивно использует `glib 0.18.5` через Tauri/GTK и затронут
+  `GHSA-wrw7-89jp-8q8g`; проблемный API не используется, но advisory блокирует stable-релиз.
