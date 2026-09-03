@@ -19,7 +19,7 @@ The design follows four boundaries:
 The domain and application layers must compile and test without a webview or real
 download engines.
 
-Version `0.1.0` keeps explicit `model`, `storage`, `scheduler`, `engine`, and
+Version `0.1.1` keeps explicit `model`, `storage`, `scheduler`, `engine`, and
 `process_supervisor` modules inside `src-tauri`. A later crate split will follow these
 now-tested interfaces instead of creating empty boundaries.
 

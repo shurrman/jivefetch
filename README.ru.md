@@ -8,7 +8,7 @@ JiveFetch — локальный кроссплатформенный desktop-м
 Целевой стек: Tauri 2, Rust, React/TypeScript, `yt-dlp`, `ffmpeg`/`ffprobe` и,
 опционально, `aria2`.
 
-Версия `0.1.0` — рабочий первый preview: Tauri-оболочка, интерфейс
+Версия `0.1.1` — рабочий первый preview: Tauri-оболочка, интерфейс
 на английском, русском и упрощённом китайском и очередь SQLite под управлением Rust.
 Можно добавить проверенную HTTP(S)-ссылку, загрузить через локальные `yt-dlp` и FFmpeg,
 видеть прогресс и выполнить Pause, Resume, Stop или Remove. После перезапуска
@@ -78,7 +78,7 @@ Rust-модулями в `src-tauri`; целевые границы crates оп�
 - [Исследовательские ориентиры](docs/research-references.ru.md)
 - [Локализация](docs/localization.ru.md)
 - [Изменения](CHANGES.ru.md)
-- [Примечания к выпуску v0.1.0](docs/releases/v0.1.0.ru.md)
+- [Примечания к выпуску v0.1.1](docs/releases/v0.1.1.ru.md)
 - [Память проекта](MEMORY.ru.md)
 
 ## Локальный запуск на macOS

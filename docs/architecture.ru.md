@@ -16,7 +16,7 @@ JiveFetch — desktop UI над долгоживущими внешними пр
 - **Adapters:** Tauri IPC/events и конкретные интеграции `yt-dlp`/`ffmpeg`/`aria2`.
 
 Domain и Application должны компилироваться и тестироваться без webview и реальных
-download engines. В `0.1.0` модули `model`, `storage`, `scheduler`, `engine` и
+download engines. В `0.1.1` модули `model`, `storage`, `scheduler`, `engine` и
 `process_supervisor` остаются в `src-tauri`; последующий crate split пойдёт по уже
 проверенным интерфейсам, а не создаст пустые границы.
 

@@ -57,7 +57,7 @@ rollback при failure. Не ставить вне compatibility range.
 
 ## 7. Licensing gate
 
-Код JiveFetch использует Apache-2.0. Версия `0.1.0` вызывает только проверенные
+Код JiveFetch использует Apache-2.0. Версия `0.1.1` вызывает только проверенные
 системные executables и не распространяет движки. Bundled/managed delivery требует
 аудита точного бинарника по документу [Лицензирование](licensing.ru.md).
 

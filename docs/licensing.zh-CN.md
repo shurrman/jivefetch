@@ -12,7 +12,7 @@ JiveFetch 源代码和项目文档采用 [Apache License 2.0](../LICENSE)。
 
 ## 当前引擎模式
 
-`0.1.0` 通过绝对路径发现并调用用户安装的 `yt-dlp` 和 FFmpeg。目前 JiveFetch
+`0.1.1` 通过绝对路径发现并调用用户安装的 `yt-dlp` 和 FFmpeg。目前 JiveFetch
 不再分发这些可执行文件。进程监管器直接传递类型化参数列表，不经过 shell。
 
 - `yt-dlp` 源代码采用 [The Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE)。

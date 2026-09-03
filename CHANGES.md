@@ -4,6 +4,15 @@
 
 This file records validated project-level changes and before/after metrics.
 
+## 0.1.1 - 2026-09-03
+
+### Fixed
+
+- Declared the complete PNG/ICNS/ICO bundle icon set so Linux AppImage and Windows
+  MSI packaging can select their required square and `.ico` assets.
+- Limited Native CI push runs to branches so a release tag does not duplicate the
+  source-verification matrix already performed by Native Release.
+
 ## 0.1.0 - 2026-09-03
 
 ### Added
@@ -40,7 +49,7 @@ This file records validated project-level changes and before/after metrics.
 
 - Before: 2 pre-existing repository files, 1 generic Markdown file, 0 application
   source files, and 0 project-specific documents.
-- After: 132 repository files, including 42 Markdown documents in 14 structurally
+- After: 135 repository files, including 45 Markdown documents in 15 structurally
   aligned EN/RU/Simplified Chinese sets, 3,262 lines of application/check source,
   a runnable desktop build, 8 regular passing Rust tests, 1 passing opt-in real-engine
   smoke test, and persistent SQLite task/attempt state.

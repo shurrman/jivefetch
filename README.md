@@ -9,7 +9,7 @@ downloads. It combines a Tauri 2 shell, a Rust scheduling and process-control
 core, and a React/TypeScript interface with `yt-dlp`, `ffmpeg`/`ffprobe`, and
 optionally `aria2` as managed external engines.
 
-Version `0.1.0` is a working initial preview. It provides a Tauri 2 desktop
+Version `0.1.1` is a working initial preview. It provides a Tauri 2 desktop
 shell, a React interface in English, Russian, and Simplified Chinese, and a Rust-owned
 SQLite queue. Users can add validated HTTP(S) URLs, download through locally installed
 `yt-dlp` and FFmpeg, see progress, and Pause, Resume, Stop, or Remove queue entries.
@@ -93,7 +93,7 @@ documented in [Architecture](docs/architecture.md).
 - [Research references](docs/research-references.md)
 - [Localization policy](docs/localization.md)
 - [Change log](CHANGES.md)
-- [v0.1.0 release notes](docs/releases/v0.1.0.md)
+- [v0.1.1 release notes](docs/releases/v0.1.1.md)
 - [Project memory](MEMORY.md)
 
 ## Run locally on macOS

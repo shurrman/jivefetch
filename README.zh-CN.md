@@ -8,7 +8,7 @@ JiveFetch 是一款本地优先、跨平台的桌面媒体下载管理器，用�
 目标技术栈为 Tauri 2、Rust、React/TypeScript，以及受管理的 `yt-dlp`、
 `ffmpeg`/`ffprobe` 和可选的 `aria2`。
 
-`0.1.0` 是可运行的首个预览版：它包含 Tauri 桌面外壳、英语、俄语和
+`0.1.1` 是可运行的首个预览版：它包含 Tauri 桌面外壳、英语、俄语和
 简体中文界面，以及由 Rust 管理的 SQLite 队列。用户可以添加经过验证的 HTTP(S)
 链接，通过本机安装的 `yt-dlp` 和 FFmpeg 下载、显示进度，并持久执行暂停、继续、
 停止和移除。重启后会依据 SQLite 协调中断任务，并可从 partial 文件继续。
@@ -77,7 +77,7 @@ README.*.md       多语言项目入口
 - [研究参考](docs/research-references.zh-CN.md)
 - [本地化策略](docs/localization.zh-CN.md)
 - [变更记录](CHANGES.zh-CN.md)
-- [v0.1.0 发布说明](docs/releases/v0.1.0.zh-CN.md)
+- [v0.1.1 发布说明](docs/releases/v0.1.1.zh-CN.md)
 - [项目记忆](MEMORY.zh-CN.md)
 
 ## 在 macOS 本地运行

@@ -6,7 +6,7 @@ Last updated: 2026-09-03
 
 ## Current state
 
-- Version `0.1.0` is a working initial download preview using Tauri 2, React, Rust/SQLite,
+- Version `0.1.1` is a working initial download preview using Tauri 2, React, Rust/SQLite,
   locally installed `yt-dlp`, and FFmpeg.
 - A two-slot Rust scheduler owns typed process plans, attempts, progress, and
   Pause/Resume/Stop/Remove with optimistic task revisions.
@@ -19,8 +19,8 @@ Last updated: 2026-09-03
 - The first remote native source CI passed on Windows, macOS, and Linux in GitHub
   Actions run `33779282453`.
 - GitHub CLI is authenticated as `shurrman`; private repository
-  `https://github.com/shurrman/jivefetch` is configured as `origin`. Version `v0.1.0`
-  is the first native release candidate for macOS, Linux, and Windows.
+  `https://github.com/shurrman/jivefetch` is configured as `origin`. Candidate
+  `v0.1.0` exposed missing explicit Linux/Windows bundle icons; `v0.1.1` fixes both.
 - Architecture and delivery contracts are documented under `docs/`.
 - JiveFetch source is Apache-2.0. System engines are not redistributed.
 - Linux inherits `glib 0.18.5` from Tauri/GTK. `GHSA-wrw7-89jp-8q8g` affects an API
@@ -74,8 +74,8 @@ Last updated: 2026-09-03
 
 ## Next actions
 
-1. Observe the first Windows/macOS/Linux release workflow; fix any packaging failure
-   before treating `v0.1.0` artifacts as verified.
+1. Observe the `v0.1.1` Windows/macOS/Linux release workflow and verify every uploaded
+   package/checksum before treating the preview artifacts as complete.
 2. Add metadata probing, format choice, and ffprobe capability reporting.
 3. Expand storage with artifacts/events, idempotency, retry policy, and pagination.
 4. Add credential-store-backed cookies and managed-engine verification before release.

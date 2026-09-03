@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-- `0.1.0` 是可运行的首个下载预览版：Tauri 2、React、Rust/SQLite，以及本机
+- `0.1.1` 是可运行的首个下载预览版：Tauri 2、React、Rust/SQLite，以及本机
   `yt-dlp` 和 FFmpeg。
 - 双槽 Rust scheduler 管理类型化 process plan、attempt、progress 与使用 task revision
   的暂停、继续、停止和移除。
@@ -17,8 +17,8 @@
 - 首次远程 native source CI 已在 Windows、macOS 和 Linux 上通过；GitHub Actions
   run 为 `33779282453`。
 - GitHub CLI 已以 `shurrman` 身份完成认证；私有仓库
-  `https://github.com/shurrman/jivefetch` 已配置为 `origin`。`v0.1.0` 是面向 macOS、
-  Linux 和 Windows 的首个 native release candidate。
+  `https://github.com/shurrman/jivefetch` 已配置为 `origin`。Candidate `v0.1.0`
+  暴露了 Linux/Windows bundle icon 未显式配置的问题；`v0.1.1` 修复两者。
 - JiveFetch 源代码采用 Apache-2.0；不再分发系统引擎。
 - Linux 通过 Tauri/GTK 引入 `glib 0.18.5`。`GHSA-wrw7-89jp-8q8g` 影响 JiveFetch
   未调用的 API；已修复的 `glib 0.20` 与 GTK `^0.18` 不兼容。该例外只适用于私有
@@ -49,8 +49,8 @@
 
 ## 下一步
 
-1. 观察首次 Windows/macOS/Linux release workflow；在确认 `v0.1.0` artifact
-   通过验证前修复所有 packaging 失败。
+1. 观察 `v0.1.1` Windows/macOS/Linux release workflow，并在确认 preview artifact
+   完成前验证所有上传的 package/checksum。
 2. 加入 metadata probe、格式选择和 ffprobe capability 报告。
 3. 扩展 storage：artifacts/events、idempotency、retry policy 和 pagination。
 4. 发布前加入 credential-store Cookie 和可验证的 managed engine。

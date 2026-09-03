@@ -121,7 +121,7 @@ Before any public build:
 - verify that the chosen JiveFetch license is compatible with the distribution model;
 - document update sources and attribution in the application.
 
-JiveFetch source uses Apache-2.0. Version `0.1.0` only invokes validated system
+JiveFetch source uses Apache-2.0. Version `0.1.1` only invokes validated system
 executables and does not redistribute engines. Bundled or managed engine delivery
 still requires the exact-binary review in [Licensing](licensing.md).
 

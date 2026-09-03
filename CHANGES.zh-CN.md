@@ -2,6 +2,15 @@
 
 # 变更记录
 
+## 0.1.1 - 2026-09-03
+
+### 修复
+
+- 明确配置完整 PNG/ICNS/ICO bundle icon，使 Linux AppImage 和 Windows MSI 能找到
+  所需的方形图标和 `.ico` asset。
+- 将 Native CI 的 push 触发限制为 branch，避免 release tag 重复运行 Native Release
+  已包含的源码验证 matrix。
+
 ## 0.1.0 - 2026-09-03
 
 ### 新增
@@ -25,7 +34,7 @@
 ### 指标
 
 - 之前：2 个原始文件、1 个通用 Markdown、0 个应用源码文件和 0 个项目文档。
-- 现在：132 个仓库文件，其中包括 14 组结构一致的 EN/RU/简体中文文档（共 42 个
+- 现在：135 个仓库文件，其中包括 15 组结构一致的 EN/RU/简体中文文档（共 45 个
   Markdown）、3,262 行应用/检查源码、可运行 desktop build、8 个常规通过的 Rust 测试、
   1 个通过的 opt-in 真实引擎 smoke，以及持久 SQLite task/attempt 状态。
 
