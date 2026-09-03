@@ -4,9 +4,13 @@
 
 > Ваши медиа. Ваша очередь. Ваши правила.
 
-JiveFetch — локальный кроссплатформенный desktop-менеджер законных медиазагрузок.
-Целевой стек: Tauri 2, Rust, React/TypeScript, `yt-dlp`, `ffmpeg`/`ffprobe` и,
-опционально, `aria2`.
+JiveFetch — локальный кроссплатформенный desktop-менеджер законных медиазагрузок
+для macOS, Windows и Linux. Чтобы в текущей сборке работали загрузки, необходимо
+локально установить `yt-dlp` и FFmpeg. Полные инструкции для каждой операционной системы —
+в [руководстве по установке](INSTALL.ru.md).
+
+Приложение сочетает Tauri 2, Rust, React/TypeScript, `yt-dlp`, `ffmpeg`/`ffprobe`
+и, опционально, `aria2`.
 
 Версия `0.3.0` — рабочий preview выбора формата и живой очереди: Tauri-оболочка, интерфейс
 на английском, русском и упрощённом китайском и очередь SQLite под управлением Rust.
@@ -74,6 +78,7 @@ Rust-модулями в `src-tauri`; целевые границы crates оп�
 
 ## Документация
 
+- [Установка на macOS, Windows и Linux](INSTALL.ru.md)
 - [Требования](docs/product-requirements.ru.md)
 - [Архитектура](docs/architecture.ru.md)
 - [Жизненный цикл задач](docs/task-lifecycle.ru.md)

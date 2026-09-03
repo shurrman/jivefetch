@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 
 const rootSets = [
   ["README.md", "README.ru.md", "README.zh-CN.md"],
+  ["INSTALL.md", "INSTALL.ru.md", "INSTALL.zh-CN.md"],
   ["CHANGES.md", "CHANGES.ru.md", "CHANGES.zh-CN.md"],
 ];
 

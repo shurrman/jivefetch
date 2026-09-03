@@ -77,8 +77,9 @@ production readiness. Для unsigned/unnotarized artifacts это явно ук
 все gate ниже.
 
 Описание GitHub release содержит English, Русский и 简体中文 как секции одной страницы.
-Переключатель языков использует внутренние anchors, поэтому после выбора перевода общий
-блок Assets остаётся доступен.
+Переключатель языков использует абсолютные URL страницы конкретного tag с anchors, а не
+anchors общей ленты релизов. Поэтому переход срабатывает надёжно и общий блок Assets
+остаётся доступен.
 
 Frontend/Rust checks; migration/crash suite; owned process tree; cookie secret tests;
 engine discovery/rollback; installer lifecycle; signing/notarization; SBOM/licenses;

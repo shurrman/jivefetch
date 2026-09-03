@@ -4,10 +4,14 @@
 
 > Your media. Your queue. Your rules.
 
-JiveFetch is a local-first cross-platform desktop manager for lawful media
-downloads. It combines a Tauri 2 shell, a Rust scheduling and process-control
-core, and a React/TypeScript interface with `yt-dlp`, `ffmpeg`/`ffprobe`, and
-optionally `aria2` as managed external engines.
+JiveFetch is a local-first cross-platform desktop manager for lawful media downloads
+on macOS, Windows, and Linux. The current builds require `yt-dlp` and FFmpeg to be
+installed locally before downloads can work. Follow the [Installation guide](INSTALL.md)
+for complete instructions for each operating system.
+
+It combines a Tauri 2 shell, a Rust scheduling and process-control core, and a
+React/TypeScript interface with `yt-dlp`, `ffmpeg`/`ffprobe`, and optionally `aria2`
+as managed external engines.
 
 Version `0.3.0` is a working format-selection and live-queue preview. It provides a Tauri 2 desktop
 shell, a React interface in English, Russian, and Simplified Chinese, and a Rust-owned
@@ -90,6 +94,7 @@ documented in [Architecture](docs/architecture.md).
 
 ## Documentation
 
+- [Installation on macOS, Windows, and Linux](INSTALL.md)
 - [Product requirements](docs/product-requirements.md)
 - [Architecture](docs/architecture.md)
 - [Task lifecycle and recovery](docs/task-lifecycle.md)

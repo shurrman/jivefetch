@@ -4,9 +4,12 @@
 
 > 你的媒体，你的队列，你的规则。
 
-JiveFetch 是一款本地优先、跨平台的桌面媒体下载管理器，用于合法的本地下载。
-目标技术栈为 Tauri 2、Rust、React/TypeScript，以及受管理的 `yt-dlp`、
-`ffmpeg`/`ffprobe` 和可选的 `aria2`。
+JiveFetch 是一款本地优先、跨平台的桌面媒体下载管理器，可在 macOS、Windows 与
+Linux 上用于合法的本地下载。要让当前构建能够下载，必须在本机安装 `yt-dlp` 和 FFmpeg。
+各操作系统的完整步骤请参阅[安装指南](INSTALL.zh-CN.md)。
+
+应用结合 Tauri 2、Rust、React/TypeScript、`yt-dlp`、`ffmpeg`/`ffprobe` 和可选的
+`aria2`。
 
 `0.3.0` 是可运行的格式选择与实时队列预览版：它包含 Tauri 桌面外壳、英语、俄语和
 简体中文界面，以及由 Rust 管理的 SQLite 队列。用户可以添加经过验证的 HTTP(S)
@@ -72,6 +75,7 @@ README.*.md       多语言项目入口
 
 ## 文档
 
+- [在 macOS、Windows 与 Linux 上安装](INSTALL.zh-CN.md)
 - [产品需求](docs/product-requirements.zh-CN.md)
 - [架构](docs/architecture.zh-CN.md)
 - [任务生命周期](docs/task-lifecycle.zh-CN.md)

@@ -2,6 +2,30 @@
 
 # 变更记录
 
+## 尚未发布
+
+### 新增
+
+- 新增英语、俄语、简体中文完整安装指南，覆盖 macOS、Windows、Ubuntu/Debian、
+  Fedora、Arch Linux、AppImage 与 DEB，并说明如何安装和验证 `yt-dlp`、FFmpeg，
+  核对 JiveFetch checksum，完成首次启动及更新下载引擎。
+- 每个 README 译本的开头现在都会醒目说明跨平台应用的引擎前置要求，并提供安装指南链接。
+
+### 修复
+
+- Release 语言导航现在指向具体 tag 页面和 section anchor，例如
+  `/releases/tag/v0.3.0#russian`，而不是相对于多版本列表的 anchor；语言跳转可以正常
+  工作，同时仍能访问 Assets。
+- 未签名 macOS 安装指南改为与版本无关，因此新 Latest 发布后不会继续显示过时的 DMG
+  文件名或 checksum。
+
+### 指标
+
+- 文档：从 48 个增加到 51 个受跟踪 Markdown 文件，从 16 组增加到 17 组已验证的
+  EN/RU/简体中文文档。
+- Release 导航：3 个含义不明确的列表相对 anchor 改为 3 个明确的 tag 页面 anchor，
+  并由 release-note checker 验证。
+
 ## 0.3.0 - 2026-09-03
 
 ### 新增

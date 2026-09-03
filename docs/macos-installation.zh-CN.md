@@ -4,16 +4,16 @@
 
 ## 适用范围
 
-JiveFetch `0.2.0` 面向 Apple Silicon (`arm64`) 构建，但尚未使用 Apple Developer ID
-证书签名，也未经过 notarization。GitHub `Latest` 只表示最新发布的版本，不表示 Apple
-已经验证该应用。
+当前 JiveFetch 预览版面向 Apple Silicon (`arm64`) 构建，但尚未使用 Apple Developer
+ID 证书签名，也未经过 notarization。GitHub `Latest` 只表示最新发布的版本，不表示
+Apple 已经验证该应用。
 
 在签名和 notarization 完成前，Gatekeeper 可能提示应用已损坏。仅对从官方仓库下载的
 JiveFetch DMG 使用以下步骤。
 
 ## 验证下载
 
-从同一个 GitHub release 下载 `JiveFetch_0.2.0_aarch64.dmg` 和
+从同一个 GitHub release 下载 `JiveFetch_<version>_aarch64.dmg` 和
 `SHA256SUMS-macOS-ARM64.txt`。在 Terminal 中运行：
 
 ```bash
@@ -24,11 +24,8 @@ shasum -a 256 -c SHA256SUMS-macOS-ARM64.txt
 仅在得到以下结果时继续：
 
 ```text
-JiveFetch_0.2.0_aarch64.dmg: OK
+JiveFetch_<version>_aarch64.dmg: OK
 ```
-
-`0.2.0` 的预期 SHA-256 为
-`7377fa07f247124ecd81388982d9360ba46db4f1e56ac419e7185384c73d9530`。
 
 ## 安装与准备
 

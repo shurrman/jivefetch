@@ -9,6 +9,7 @@ if (!notesPath || !repository || !ref) {
 }
 
 const repositoryBase = `https://github.com/${repository}/blob/${encodeURIComponent(ref)}/`;
+const releaseBase = `https://github.com/${repository}/releases/tag/${encodeURIComponent(ref)}`;
 const notesStem = notesPath.endsWith(".md") ? notesPath.slice(0, -3) : null;
 
 if (!notesStem) {
@@ -63,7 +64,7 @@ const sections = sources.map(({ heading, path, markdown }) => {
   return `## ${heading}\n\n${makeLinksAbsolute(content, path)}`;
 });
 const languageNavigation = languages
-  .map(({ label, anchor }) => `[${label}](#${anchor})`)
+  .map(({ label, anchor }) => `[${label}](${releaseBase}#${anchor})`)
   .join(" | ");
 const rendered = `${languageNavigation}\n\n# ${titleMatch[1]}\n\n${sections.join("\n\n---\n\n")}\n`;
 
@@ -78,7 +79,15 @@ if (mode === "--check") {
     .slice(1)
     .filter(({ path }) => rendered.includes(`${repositoryBase}${path}`))
     .map(({ path }) => path);
-  if (unresolved.length > 0 || missingSections.length > 0 || repositoryTranslationLinks.length > 0) {
+  const missingNavigationTargets = languages
+    .filter(({ anchor }) => !rendered.includes(`${releaseBase}#${anchor}`))
+    .map(({ anchor }) => anchor);
+  if (
+    unresolved.length > 0 ||
+    missingSections.length > 0 ||
+    repositoryTranslationLinks.length > 0 ||
+    missingNavigationTargets.length > 0
+  ) {
     console.error(`Release-note URL rendering failed: ${unresolved.join(", ")}`);
     if (missingSections.length > 0) {
       console.error(`Missing in-page language sections: ${missingSections.join(", ")}`);
@@ -86,10 +95,13 @@ if (mode === "--check") {
     if (repositoryTranslationLinks.length > 0) {
       console.error(`Translations leave the release page: ${repositoryTranslationLinks.join(", ")}`);
     }
+    if (missingNavigationTargets.length > 0) {
+      console.error(`Missing tag-page language anchors: ${missingNavigationTargets.join(", ")}`);
+    }
     process.exit(1);
   }
   console.log(
-    `Checked release notes for ${ref}: three in-page languages and no unresolved links.`,
+    `Checked release notes for ${ref}: three tag-page language anchors and no unresolved links.`,
   );
 } else {
   process.stdout.write(rendered);

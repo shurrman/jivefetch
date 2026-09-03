@@ -145,8 +145,9 @@ out explicitly and must not claim production support. A fully supported producti
 release must satisfy every gate below.
 
 GitHub release descriptions embed English, Russian, and Simplified Chinese as in-page
-sections. Their language navigation uses anchors on the same release page so switching
-language preserves access to the shared Assets block.
+sections. Their language navigation uses absolute tag-page URLs plus section anchors,
+not anchors relative to the multi-release listing, so switching language reliably keeps
+the user on the release page with its shared Assets block.
 
 A target artifact is releasable only when:
 

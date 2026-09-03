@@ -4,9 +4,9 @@
 
 ## Scope
 
-JiveFetch `0.2.0` is built for Apple Silicon (`arm64`) but is not signed with an
-Apple Developer ID certificate or notarized. GitHub `Latest` means that it is the
-newest published build; it does not mean that Apple has verified it.
+Current JiveFetch preview releases are built for Apple Silicon (`arm64`) but are not
+signed with an Apple Developer ID certificate or notarized. GitHub `Latest` means that
+the release is the newest published build; it does not mean that Apple has verified it.
 
 Until signing and notarization are enabled, Gatekeeper may report that the app is
 damaged. Use the following procedure only for a JiveFetch DMG downloaded from the
@@ -14,7 +14,7 @@ official repository.
 
 ## Verify the download
 
-Download both `JiveFetch_0.2.0_aarch64.dmg` and
+Download the `JiveFetch_<version>_aarch64.dmg` file and
 `SHA256SUMS-macOS-ARM64.txt` from the same GitHub release. In Terminal, run:
 
 ```bash
@@ -25,11 +25,8 @@ shasum -a 256 -c SHA256SUMS-macOS-ARM64.txt
 Continue only when the result is:
 
 ```text
-JiveFetch_0.2.0_aarch64.dmg: OK
+JiveFetch_<version>_aarch64.dmg: OK
 ```
-
-For `0.2.0`, the expected SHA-256 is
-`7377fa07f247124ecd81388982d9360ba46db4f1e56ac419e7185384c73d9530`.
 
 ## Install and prepare
 

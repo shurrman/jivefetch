@@ -4,6 +4,32 @@
 
 This file records validated project-level changes and before/after metrics.
 
+## Unreleased
+
+### Added
+
+- Added a complete installation guide for macOS, Windows, Ubuntu/Debian, Fedora,
+  Arch Linux, AppImage, and DEB in English, Russian, and Simplified Chinese. It covers
+  installing and verifying `yt-dlp` and FFmpeg, matching JiveFetch checksums, first
+  launch, and engine updates.
+- Made the cross-platform engine prerequisite and installation-guide link prominent at
+  the beginning of every README translation.
+
+### Fixed
+
+- Release language navigation now targets the concrete tag page and section anchor,
+  for example `/releases/tag/v0.3.0#russian`, instead of an anchor relative to the
+  multi-release listing. This keeps language jumps functional and Assets accessible.
+- Made the unsigned macOS installation guide version-independent so it no longer names
+  an obsolete DMG or checksum after a newer release becomes Latest.
+
+### Metrics
+
+- Documentation: 48 to 51 tracked Markdown files and 16 to 17 validated
+  EN/RU/Simplified Chinese sets.
+- Release navigation: 3 ambiguous listing-relative anchors to 3 explicit tag-page
+  anchors, validated by the release-note checker.
+
 ## 0.3.0 - 2026-09-03
 
 ### Added
