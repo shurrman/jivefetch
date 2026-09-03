@@ -21,6 +21,8 @@ This file records validated project-level changes and before/after metrics.
   migration, persistence, allocation, and argument-vector tests.
 - Published `v0.1.1` as the first cross-platform prerelease with DMG, AppImage, DEB,
   NSIS EXE, MSI, and per-platform SHA-256 manifests.
+- Published `v0.2.0` after Native CI and Native Release succeeded on macOS, Linux,
+  and Windows, with eight installer/checksum assets.
 
 ### Metrics
 

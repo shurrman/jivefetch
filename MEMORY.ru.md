@@ -28,6 +28,9 @@
   выявил неявные Linux/Windows bundle icons. Native CI run `33783089736` и Native
   Release run `33784331491` успешно завершились для опубликованного `v0.1.1` с
   восемью macOS/Linux/Windows artifacts.
+- Commit `a4792bb` прошёл Native CI run `33788132275` на macOS, Linux и Windows.
+  Native Release run `33789236621` опубликовал prerelease `v0.2.0` с восемью
+  проверенными DMG/AppImage/DEB/NSIS/MSI/checksum artifacts.
 - Исходники JiveFetch — Apache-2.0; системные движки не распространяются.
 - Linux получает `glib 0.18.5` через Tauri/GTK. `GHSA-wrw7-89jp-8q8g` затрагивает API,
   который JiveFetch не вызывает; исправленный `glib 0.20` несовместим с GTK `^0.18`.
@@ -61,9 +64,7 @@
 
 ## Следующее
 
-1. Завершить локальные app/real-engine/package проверки `v0.2.0`, затем потребовать
-   зелёную native CI на Windows/macOS/Linux перед tag и публикацией prerelease.
-2. Добавить metadata probe, выбор формата и отчёт capabilities ffprobe.
-3. Расширить storage: artifacts/events, idempotency, retry policy и pagination.
-4. Добавить profile/keyring details и зашифрованный import cookie-файла без показа значений.
-5. Добавить signing/notarization и проверяемые managed engines до stable release.
+1. Добавить metadata probe, выбор формата и отчёт capabilities ffprobe.
+2. Расширить storage: artifacts/events, idempotency, retry policy и pagination.
+3. Добавить profile/keyring details и зашифрованный import cookie-файла без показа значений.
+4. Добавить signing/notarization и проверяемые managed engines до stable release.

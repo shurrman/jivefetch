@@ -16,6 +16,8 @@
   persistence、allocation 和 argument-vector 测试。
 - `v0.1.1` 已作为首个跨平台 prerelease 发布，包含 DMG、AppImage、DEB、NSIS EXE、
   MSI 以及各平台 SHA-256 manifest。
+- `v0.2.0` 已在 macOS、Linux、Windows 的 Native CI 与 Native Release 全部成功后
+  发布，包含八个 installer/checksum artifact。
 
 ### 指标
 

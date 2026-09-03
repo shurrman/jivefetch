@@ -24,6 +24,9 @@
   暴露了 Linux/Windows bundle icon 问题。Native CI run `33783089736` 和 Native
   Release run `33784331491` 已为 `v0.1.1` 成功完成；该版本发布了八个
   macOS/Linux/Windows artifact。
+- Commit `a4792bb` 在 macOS、Linux 和 Windows 上通过 Native CI run `33788132275`。
+  Native Release run `33789236621` 随后发布 `v0.2.0` prerelease，其中包含八个
+  已验证的 DMG/AppImage/DEB/NSIS/MSI/checksum artifact。
 - JiveFetch 源代码采用 Apache-2.0；不再分发系统引擎。
 - Linux 通过 Tauri/GTK 引入 `glib 0.18.5`。`GHSA-wrw7-89jp-8q8g` 影响 JiveFetch
   未调用的 API；已修复的 `glib 0.20` 与 GTK `^0.18` 不兼容。该例外只适用于私有
@@ -56,9 +59,7 @@
 
 ## 下一步
 
-1. 完成 `v0.2.0` 本机 app/real-engine/package 检查；在 tag 与发布 prerelease 前，
-   要求 Windows/macOS/Linux native CI 全部通过。
-2. 加入 metadata probe、格式选择和 ffprobe capability 报告。
-3. 扩展 storage：artifacts/events、idempotency、retry policy 和 pagination。
-4. 加入 profile/keyring 细节和不暴露值的加密 Cookie 文件导入。
-5. 在 stable release 前加入 signing/notarization 和经过验证的 managed engine。
+1. 加入 metadata probe、格式选择和 ffprobe capability 报告。
+2. 扩展 storage：artifacts/events、idempotency、retry policy 和 pagination。
+3. 加入 profile/keyring 细节和不暴露值的加密 Cookie 文件导入。
+4. 在 stable release 前加入 signing/notarization 和经过验证的 managed engine。

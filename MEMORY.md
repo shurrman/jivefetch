@@ -29,6 +29,9 @@ Last updated: 2026-09-03
   `v0.1.0` exposed missing explicit Linux/Windows bundle icons. Native CI run
   `33783089736` and Native Release run `33784331491` completed successfully for
   `v0.1.1`, which is published with eight macOS/Linux/Windows artifacts.
+- Commit `a4792bb` passed Native CI run `33788132275` on macOS, Linux, and Windows.
+  Native Release run `33789236621` then published the `v0.2.0` prerelease with eight
+  verified DMG/AppImage/DEB/NSIS/MSI/checksum assets.
 - Architecture and delivery contracts are documented under `docs/`.
 - JiveFetch source is Apache-2.0. System engines are not redistributed.
 - Linux inherits `glib 0.18.5` from Tauri/GTK. `GHSA-wrw7-89jp-8q8g` affects an API
@@ -83,9 +86,7 @@ Last updated: 2026-09-03
 
 ## Next actions
 
-1. Complete the `v0.2.0` local app/real-engine/package checks, then require green native
-   CI on Windows/macOS/Linux before tagging and publishing the prerelease.
-2. Add metadata probing, format choice, and ffprobe capability reporting.
-3. Expand storage with artifacts/events, idempotency, retry policy, and pagination.
-4. Add profile/keyring detail and encrypted cookie-file import without exposing values.
-5. Add signing/notarization and verified managed engines before a stable release.
+1. Add metadata probing, format choice, and ffprobe capability reporting.
+2. Expand storage with artifacts/events, idempotency, retry policy, and pagination.
+3. Add profile/keyring detail and encrypted cookie-file import without exposing values.
+4. Add signing/notarization and verified managed engines before a stable release.

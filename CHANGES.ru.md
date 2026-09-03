@@ -19,6 +19,8 @@
   migration, persistence, allocation и argument-vector тестами.
 - `v0.1.1` опубликован как первый cross-platform prerelease: DMG, AppImage, DEB,
   NSIS EXE, MSI и SHA-256 manifests для каждой платформы.
+- `v0.2.0` опубликован после успешных Native CI и Native Release на macOS, Linux и
+  Windows с восемью installer/checksum artifacts.
 
 ### Метрики
 
