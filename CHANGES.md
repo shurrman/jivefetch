@@ -27,6 +27,9 @@ This file records validated project-level changes and before/after metrics.
   local working copies through explicit ignore rules.
 - Repaired the published translation/documentation links for `v0.2.0` and made the
   release workflow render every relative note link as a tag-stable absolute URL.
+- Removed the incomplete `v0.1.0` draft release, promoted `v0.2.0` to GitHub `Latest`
+  without rebuilding its artifacts, and made future successful releases become
+  `Latest` automatically. Signing and notarization remain separate production gates.
 
 ### Metrics
 
@@ -92,4 +95,5 @@ This file records validated project-level changes and before/after metrics.
 - Installer signing identities, managed sidecar distribution, FFmpeg redistribution
   review, SBOM/provenance, and clean-machine release tests are not yet complete.
 - Linux transitively uses `glib 0.18.5` through Tauri/GTK and remains flagged by
-  `GHSA-wrw7-89jp-8q8g`; the affected API is unused, but the advisory blocks stable release.
+  `GHSA-wrw7-89jp-8q8g`; the affected API is unused, but the advisory blocks a fully
+  supported production release.

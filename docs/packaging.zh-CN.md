@@ -65,9 +65,10 @@ lockfile/Actions SHA，最小 CI 权限，生成 SBOM、checksum 和 provenance�
 
 ## 9. 发布 gate
 
-在 production signing 就绪前，可以通过 native CI 构建私有 preview，但必须标记为
-pre-release，明确说明 artifact 未签名/未 notarize，且不得宣称 production support。
-Stable release 必须通过以下全部 gate。
+最新成功发布的版本始终标记为 GitHub `Latest`，即使 production signing 尚未就绪。
+`Latest` 只表示发布顺序，不代表认证或 production readiness。未签名/未 notarize 的
+artifact 必须明确说明，并且不得宣称 production support。完整支持的 production release
+必须通过以下全部 gate。
 
 每个 target 必须通过 frontend/Rust、migration/crash、owned process tree、Cookie secret、
 engine rollback、installer lifecycle、signature/notarization、SBOM/license 和 clean-machine

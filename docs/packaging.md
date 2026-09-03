@@ -136,9 +136,11 @@ still requires the exact-binary review in [Licensing](licensing.md).
 
 ## 9. Release gates
 
-Private preview releases may be built on native CI before production signing is in
-place only when they are marked as pre-release, identify unsigned/unnotarized assets,
-and do not claim production support. Stable releases must satisfy every gate below.
+The newest successfully published release is marked as GitHub `Latest`, including
+while production signing is not yet in place. `Latest` identifies release ordering,
+not certification or production readiness. Unsigned/unnotarized assets must be called
+out explicitly and must not claim production support. A fully supported production
+release must satisfy every gate below.
 
 A target artifact is releasable only when:
 

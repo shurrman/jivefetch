@@ -68,9 +68,11 @@ Pin toolchains/lockfiles/actions SHA,
 
 ## 9. Release gates
 
-Private preview можно собирать в native CI до production signing только с пометкой
-pre-release, явным указанием unsigned/unnotarized artifacts и без заявления production
-support. Stable-релиз обязан пройти все gate ниже.
+Самый новый успешно опубликованный релиз назначается GitHub `Latest`, в том числе до
+появления production signing. `Latest` обозначает порядок релизов, а не сертификацию или
+production readiness. Для unsigned/unnotarized artifacts это явно указывается без
+заявления production support. Полноценный поддерживаемый production-релиз обязан пройти
+все gate ниже.
 
 Frontend/Rust checks; migration/crash suite; owned process tree; cookie secret tests;
 engine discovery/rollback; installer lifecycle; signing/notarization; SBOM/licenses;

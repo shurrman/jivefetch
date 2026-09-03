@@ -38,7 +38,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
             --draft \
-            --prerelease \
             --title "JiveFetch $GITHUB_REF_NAME" \
             --notes-file "$rendered_notes"
 
@@ -131,7 +130,7 @@ jobs:
         run: gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
 
   publish-release:
-    name: Publish preview release
+    name: Publish latest release
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -139,4 +138,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease=true
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease=false --latest

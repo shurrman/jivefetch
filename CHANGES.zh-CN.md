@@ -22,6 +22,9 @@
   规则保留工作副本。
 - 修复了已发布 `v0.2.0` 的翻译/文档链接；release workflow 现在会把相对链接转换为
   对应 tag 的稳定绝对 URL。
+- 删除了不完整的 `v0.1.0` draft release，且未重新构建 artifact 就将 `v0.2.0`
+  设为 GitHub `Latest`；后续成功发布的版本也会自动成为 `Latest`。签名与 notarization
+  仍是独立的 production gate。
 
 ### 指标
 
@@ -69,4 +72,4 @@
 
 - Installer signing identity、managed sidecar、FFmpeg 再分发审查、SBOM/provenance 和 clean-machine release test 尚未完成。
 - Linux 通过 Tauri/GTK 间接使用 `glib 0.18.5`，仍受 `GHSA-wrw7-89jp-8q8g`
-  标记；受影响 API 未被使用，但该 advisory 会阻止 stable release。
+  标记；受影响 API 未被使用，但该 advisory 会阻止完整支持的 production release。

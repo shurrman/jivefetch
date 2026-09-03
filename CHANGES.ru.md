@@ -25,6 +25,9 @@
   точными правилами ignore.
 - Исправлены опубликованные ссылки на переводы/документацию `v0.2.0`; release workflow
   теперь преобразует относительные ссылки в стабильные абсолютные URL конкретного tag.
+- Удалён неполный draft-релиз `v0.1.0`, `v0.2.0` назначен GitHub `Latest` без пересборки
+  artifacts, а следующие успешно опубликованные релизы будут становиться `Latest`
+  автоматически. Signing и notarization остаются отдельными production gate.
 
 ### Метрики
 
@@ -79,4 +82,5 @@
 - Не готовы signing identities, managed sidecars, проверка распространения FFmpeg,
   SBOM/provenance и clean-machine release tests.
 - Linux транзитивно использует `glib 0.18.5` через Tauri/GTK и затронут
-  `GHSA-wrw7-89jp-8q8g`; проблемный API не используется, но advisory блокирует stable-релиз.
+  `GHSA-wrw7-89jp-8q8g`; проблемный API не используется, но advisory блокирует полностью
+  поддерживаемый production-релиз.
