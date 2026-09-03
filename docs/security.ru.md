@@ -20,6 +20,8 @@ unrelated process. Полностью compromised user account/kernel/browser в
 
 Browser mode хранит browser kind и validated profile reference, передавая движку
 `--cookies-from-browser`; cookie values не копируются.
+В `0.2.0` сохраняется только один из документированных yt-dlp identifiers: Brave, Chrome,
+Chromium, Edge, Firefox, Opera, Safari, Vivaldi или Whale. Profile/keyring пока не вводятся.
 
 ### 3.2 Импортированный cookie file
 
@@ -77,5 +79,5 @@ owned-process tests. Insecure fallback блокирует release.
 Linux dependency graph получает `glib 0.18.5` через Tauri и GTK 0.18. Версия затронута
 `GHSA-wrw7-89jp-8q8g` в `VariantStrIter`; JiveFetch этот API не вызывает. Исправленный
 `glib 0.20` несовместим с текущим ограничением GTK `^0.18`, поэтому исключение временно
-разрешено только для приватного pre-release `v0.1.0`. Обновление цепочки Tauri/GTK или
+разрешено для приватной preview-линейки до `v0.2.0` включительно. Обновление цепочки Tauri/GTK или
 иное устранение advisory остаётся gate для stable-релиза.

@@ -17,7 +17,7 @@ artifact — attributed partial/final file. У task много attempts в ис�
 
 States: `probing`, `queued`, `starting`, `downloading`, `postprocessing`, `pausing`,
 `paused`, `stopping`, `stopped`, `waiting_retry`, `completed`, `failed`, `interrupted`,
-`removed`. Foundation `0.1.0` реализует stable subset `queued/paused/stopped` плюс
+`removed`. Foundation `0.2.0` реализует stable subset `queued/paused/stopped` плюс
 зарезервированные runtime states.
 
 ## 4. Схема переходов
@@ -82,6 +82,8 @@ Partial reuse требует совместимых destination/template/source/
 
 Progress coalesced для UI, checkpoints —
 на bounded interval и phase boundaries; 100% progress сам по себе не означает complete.
+UI `0.2.0` запрашивает authoritative snapshot каждые пять секунд. Синий, зелёный и
+красный progress дополняет явный текстовый state для active, completed и failed/interrupted.
 
 ## 10. Concurrency races для тестирования
 

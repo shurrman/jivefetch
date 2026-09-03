@@ -19,7 +19,7 @@ The design follows four boundaries:
 The domain and application layers must compile and test without a webview or real
 download engines.
 
-Version `0.1.1` keeps explicit `model`, `storage`, `scheduler`, `engine`, and
+Version `0.2.0` keeps explicit `model`, `storage`, `scheduler`, `engine`, and
 `process_supervisor` modules inside `src-tauri`. A later crate split will follow these
 now-tested interfaces instead of creating empty boundaries.
 
@@ -116,6 +116,11 @@ Initial logical tables:
 Raw cookies and credential values never enter SQLite. Raw probe payloads are filtered
 for known secret-bearing headers/URLs before storage.
 
+The current `app_settings` singleton stores validated concurrency, an optional aggregate
+speed budget, a non-secret browser-kind reference, and the absolute output directory. Its
+migration defaults to two slots, unlimited speed, no browser cookies, and the platform
+Downloads directory plus `JiveFetch`.
+
 Task state and its corresponding durable event are written in the same transaction.
 Attempt ownership uses a generated `run_id` plus process-native ownership metadata;
 PID alone is informational.
@@ -151,11 +156,10 @@ backoff and jitter. Every retry is a new attempt; history is never overwritten.
 effective(task) = min(task_limit_or_infinity, fair_share_of_global_limit)
 ```
 
-The first implementation passes a fixed cap to the engine. If active membership or
-settings change materially, the scheduler rebalances using pause/checkpoint and a
-resumable new attempt because `yt-dlp` cannot reliably accept an in-place rate change
-on every platform and protocol. Allocation changes are debounced to avoid restart
-thrashing.
+Version `0.2.0` divides the aggregate budget by the configured execution slots and passes
+that fixed per-attempt cap to `yt-dlp`. This conservative allocation never exceeds the
+selected budget, although unused slots can leave bandwidth idle. Settings changes apply
+to new attempts; already-owned process trees are not killed or silently restarted.
 
 A later local transport broker may provide finer-grained aggregate throttling, but
 it is not required to establish correct task semantics.

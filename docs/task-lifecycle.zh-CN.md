@@ -17,7 +17,7 @@ attempt，但最多一个 live attempt。
 
 状态包括 `probing`、`queued`、`starting`、`downloading`、`postprocessing`、
 `pausing`、`paused`、`stopping`、`stopped`、`waiting_retry`、`completed`、
-`failed`、`interrupted`、`removed`。Foundation `0.1.0` 实现了 `queued/paused/stopped`
+`failed`、`interrupted`、`removed`。Foundation `0.2.0` 实现了 `queued/paused/stopped`
 稳定子集，并为 runtime state 保留模型。
 
 ## 4. 转换概览
@@ -80,6 +80,8 @@ Partial 重用要求 destination/template/source/format/engine fingerprint 兼�
 
 UI progress 合并，checkpoint 只在有界间隔和 phase boundary 持久化；
 100% progress 不等于完成。
+`0.2.0` UI 每五秒请求一次 authoritative snapshot。蓝色、绿色和红色进度填充配合
+明确文本状态，分别表示 active、completed 与 failed/interrupted。
 
 ## 10. 必须测试的 concurrency races
 

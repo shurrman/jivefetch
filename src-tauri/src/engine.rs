@@ -55,13 +55,11 @@ impl EngineRegistry {
         }
     }
 
-    pub fn status(&self, output_directory: &Path, concurrency: usize) -> EngineStatus {
+    pub fn status(&self) -> EngineStatus {
         EngineStatus {
             ready: self.yt_dlp.is_some() && self.ffmpeg.is_some(),
             yt_dlp: engine_info(self.yt_dlp.as_ref()),
             ffmpeg: engine_info(self.ffmpeg.as_ref()),
-            output_directory: output_directory.to_string_lossy().into_owned(),
-            concurrency,
         }
     }
 
@@ -69,6 +67,8 @@ impl EngineRegistry {
         &self,
         url: &str,
         output_directory: &Path,
+        speed_limit_bytes_per_second: Option<u64>,
+        browser_for_cookies: Option<&str>,
     ) -> Result<ExecutionPlan, String> {
         let yt_dlp = self
             .yt_dlp
@@ -78,7 +78,7 @@ impl EngineRegistry {
             .ffmpeg
             .as_ref()
             .ok_or_else(|| "ffmpegMissing".to_string())?;
-        let args = vec![
+        let mut args = vec![
             "--ignore-config".to_string(),
             "--no-playlist".to_string(),
             "--newline".to_string(),
@@ -99,13 +99,21 @@ impl EngineRegistry {
             "%(title).180B [%(id)s].%(ext)s".to_string(),
             "--continue".to_string(),
             "--no-overwrites".to_string(),
+        ];
+        if let Some(limit) = speed_limit_bytes_per_second {
+            args.extend(["--limit-rate".to_string(), limit.to_string()]);
+        }
+        if let Some(browser) = browser_for_cookies {
+            args.extend(["--cookies-from-browser".to_string(), browser.to_string()]);
+        }
+        args.extend([
             "--format".to_string(),
             "bestvideo*+bestaudio/best".to_string(),
             "--ffmpeg-location".to_string(),
             ffmpeg.path.to_string_lossy().into_owned(),
             "--".to_string(),
             url.to_string(),
-        ];
+        ]);
 
         Ok(ExecutionPlan {
             executable: yt_dlp.path.clone(),
@@ -249,7 +257,10 @@ fn read_version(
                     }
                     thread::sleep(Duration::from_millis(10));
                 }
-                return lines.into_iter().find(|line| !line.trim().is_empty());
+                return lines
+                    .into_iter()
+                    .find(|line| !line.trim().is_empty())
+                    .map(|line| concise_version(&line));
             }
             Ok(Some(_)) | Err(_) => return None,
             Ok(None) => thread::sleep(Duration::from_millis(25)),
@@ -260,13 +271,30 @@ fn read_version(
     None
 }
 
+fn concise_version(line: &str) -> String {
+    line.strip_prefix("ffmpeg version ")
+        .or_else(|| line.strip_prefix("ffprobe version "))
+        .and_then(|rest| rest.split_whitespace().next())
+        .unwrap_or(line)
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use crate::process_supervisor::OutputStream;
 
-    use super::{parse_engine_line, EngineEvent};
+    use super::{concise_version, parse_engine_line, EngineBinary, EngineEvent, EngineRegistry};
+
+    #[test]
+    fn keeps_engine_versions_concise_for_the_header() {
+        assert_eq!(
+            concise_version("ffmpeg version 8.1.2 Copyright (c) 2000-2026"),
+            "8.1.2"
+        );
+        assert_eq!(concise_version("2026.07.04"), "2026.07.04");
+    }
 
     #[test]
     fn parses_machine_progress_and_final_path() {
@@ -290,5 +318,36 @@ mod tests {
             parse_engine_line(OutputStream::Stderr, "__JIVEFETCH_PROGRESS__1\t2\t3\t4"),
             None
         );
+    }
+
+    #[test]
+    fn adds_the_configured_global_speed_limit_without_a_shell() {
+        let registry = EngineRegistry {
+            yt_dlp: Some(EngineBinary {
+                path: PathBuf::from("yt-dlp"),
+                version: "test".to_string(),
+            }),
+            ffmpeg: Some(EngineBinary {
+                path: PathBuf::from("ffmpeg"),
+                version: "test".to_string(),
+            }),
+        };
+        let plan = registry
+            .download_plan(
+                "https://example.com/video?id=1",
+                &PathBuf::from("/tmp/downloads"),
+                Some(524_288),
+                Some("firefox"),
+            )
+            .unwrap();
+        assert!(plan
+            .args
+            .windows(2)
+            .any(|args| args == ["--limit-rate", "524288"]));
+        assert!(plan
+            .args
+            .windows(2)
+            .any(|args| args == ["--cookies-from-browser", "firefox"]));
+        assert_eq!(plan.args.last().unwrap(), "https://example.com/video?id=1");
     }
 }

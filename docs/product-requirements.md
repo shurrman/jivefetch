@@ -96,6 +96,8 @@ failure, and continue without losing the queue or accidentally duplicating work.
   attempts, and artifacts in SQLite.
 - Enforce a configurable maximum number of simultaneous downloading tasks and a
   separate post-processing limit.
+- The desktop control offers 1–10 presets and a validated custom value; the first-run
+  default is 2. Reducing the value does not terminate already running tasks.
 - Prevent two attempts from owning the same task or output path concurrently.
 - Support priorities without permanent starvation of older tasks.
 - Apply retry classification and exponential backoff with jitter only to errors
@@ -150,6 +152,8 @@ failure, and continue without losing the queue or accidentally duplicating work.
   observed rates lower than the configured maximum.
 - Acceptance target for sustained aggregate traffic is no more than 110% of the
   configured global ceiling after a short stabilization window.
+- The `0.2.0` conservative implementation divides the global ceiling across configured
+  slots for new attempts; a future broker may reclaim capacity from idle slots.
 
 ### FR-8 History, artifacts, and diagnostics
 
@@ -212,6 +216,10 @@ failure, and continue without losing the queue or accidentally duplicating work.
   affected.
 - A progress indicator identifies Downloading, Merging, Converting, Paused, Stopping,
   and Waiting for retry as different phases.
+- Active queue snapshots refresh at least every five seconds and display progress,
+  state, speed, ETA, downloaded bytes, and estimated total bytes per task.
+- Engine versions, concurrency, speed, theme, language, and output-directory controls
+  remain visible in the top settings region; implementation-only storage cards are absent.
 
 ## 6. MVP boundary
 

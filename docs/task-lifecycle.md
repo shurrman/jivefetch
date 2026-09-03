@@ -161,6 +161,10 @@ them for UI display. Durable checkpoints are stored at phase boundaries and a bo
 interval, carrying downloaded bytes, total estimate, speed, ETA, fragment counts,
 and last safe event time.
 
+The `0.2.0` UI requests an authoritative queue snapshot every five seconds and keeps
+manual refresh available. Blue, green, and red progress fills supplement explicit text
+states for active, completed, and failed/interrupted work.
+
 A checkpoint is informational; files and engine resume behavior remain the source of
 truth for resumability. A 100% progress event alone never marks a task completed.
 

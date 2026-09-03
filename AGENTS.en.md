@@ -39,6 +39,8 @@ Rust, React/TypeScript, `yt-dlp`, FFmpeg/ffprobe, and optional aria2.
 
 - Keep queue, task lifecycle, and process ownership in Rust. React is a projection.
 - Persist scheduler transitions transactionally in SQLite before publishing UI events.
+- Persist user concurrency, global speed limit, and output directory in SQLite and
+  enforce them in the Rust scheduler; UI controls are not a second source of truth.
 - A PID is not ownership. Stop only the owned Unix process group/session or Windows
   Job Object. Never use executable-name-wide kill commands.
 - Portable Pause means resumable controlled stop plus a new attempt. OS suspension is

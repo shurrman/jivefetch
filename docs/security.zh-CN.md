@@ -19,6 +19,8 @@ browser 或 OS credential store 不在 MVP threat model 内。
 
 Browser 模式只保存 browser kind 和经过验证的 profile reference，并使用类似
 `--cookies-from-browser` 的参数；不复制 Cookie 值。
+`0.2.0` 只允许保存 yt-dlp 文档中的 Brave、Chrome、Chromium、Edge、Firefox、Opera、
+Safari、Vivaldi 或 Whale 标识；暂不开放 profile/keyring 输入。
 
 ### 3.2 导入 Cookie file
 
@@ -76,5 +78,5 @@ fallback 都会阻止发布。
 
 Linux dependency graph 通过 Tauri 和 GTK 0.18 引入 `glib 0.18.5`，其中
 `VariantStrIter` 受 `GHSA-wrw7-89jp-8q8g` 影响；JiveFetch 不调用该 API。已修复的
-`glib 0.20` 与 GTK 当前的 `^0.18` 约束不兼容，因此只为私有 `v0.1.0` pre-release
-临时接受此例外。Stable release 前必须升级 Tauri/GTK 链或以其他方式消除该 advisory。
+`glib 0.20` 与 GTK 当前的 `^0.18` 约束不兼容，因此只为截至 `v0.2.0` 的私有 preview
+版本临时接受此例外。Stable release 前必须升级 Tauri/GTK 链或以其他方式消除该 advisory。

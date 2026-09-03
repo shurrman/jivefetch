@@ -1,8 +1,31 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { actOnTask, addTask, getEngineStatus, listTasks, removeTask } from "./api";
+import {
+  actOnTask,
+  addTask,
+  getEngineStatus,
+  getSettings,
+  listTasks,
+  removeTask,
+  updateSettings,
+} from "./api";
 import { type Language, type TranslationKey, useI18n } from "./i18n";
-import type { EngineStatus, QueueTask, TaskAction, TaskState } from "./types";
+import type {
+  AppSettings,
+  EngineStatus,
+  QueueTask,
+  TaskAction,
+  TaskState,
+  Theme,
+} from "./types";
 
 const localeByLanguage: Record<Language, string> = {
   en: "en-US",
@@ -28,6 +51,10 @@ const backendErrorKeys: Record<string, TranslationKey> = {
   processSupervisorError: "processSupervisorError",
   schedulerError: "schedulerError",
   outputDirectoryError: "outputDirectoryError",
+  invalidOutputDirectory: "invalidOutputDirectory",
+  invalidConcurrency: "invalidConcurrency",
+  invalidSpeedLimit: "invalidSpeedLimit",
+  invalidCookieBrowser: "invalidCookieBrowser",
   databaseTooNew: "databaseTooNew",
   interruptedAfterRestart: "interruptedAfterRestart",
 };
@@ -46,6 +73,15 @@ const removableStates = new Set<TaskState>([
   "failed",
   "interrupted",
 ]);
+const failedStates = new Set<TaskState>(["failed", "interrupted"]);
+const concurrencyPresets = Array.from({ length: 10 }, (_, index) => index + 1);
+const speedPresets = [512 * 1024, 1024 * 1024, 2 * 1024 * 1024, 3 * 1024 * 1024];
+const themeStorageKey = "jivefetch.theme";
+
+function storedTheme(): Theme {
+  const value = window.localStorage.getItem(themeStorageKey);
+  return value === "light" || value === "dark" ? value : "system";
+}
 
 function errorKeyForReason(reason: unknown): TranslationKey {
   const code = typeof reason === "string" ? reason : reason instanceof Error ? reason.message : "";
@@ -54,6 +90,13 @@ function errorKeyForReason(reason: unknown): TranslationKey {
 
 function stateClass(state: TaskState) {
   return `state state-${state}`;
+}
+
+function progressClass(state: TaskState) {
+  if (state === "completed") return "progress-track progress-completed";
+  if (failedStates.has(state)) return "progress-track progress-failed";
+  if (activeStates.has(state)) return "progress-track progress-active";
+  return "progress-track progress-idle";
 }
 
 function displayUrl(value: string) {
@@ -77,6 +120,15 @@ function formatBytes(value: number | null, locale: string) {
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: index === 0 ? 0 : 1 }).format(shown)} ${units[index]}`;
 }
 
+function formatDuration(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainder}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
+
 function versionLabel(version: string | null, available: boolean, availableText: string, missingText: string) {
   return version ?? (available ? availableText : missingText);
 }
@@ -86,15 +138,48 @@ export default function App() {
   const locale = localeByLanguage[language];
   const [tasks, setTasks] = useState<QueueTask[]>([]);
   const [engines, setEngines] = useState<EngineStatus | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [theme, setThemeState] = useState<Theme>(storedTheme);
+  const [customConcurrencyMode, setCustomConcurrencyMode] = useState(false);
+  const [customSpeedMode, setCustomSpeedMode] = useState(false);
+  const [customConcurrency, setCustomConcurrency] = useState("11");
+  const [customSpeedKiB, setCustomSpeedKiB] = useState("4096");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [settingsBusy, setSettingsBusy] = useState(false);
   const [error, setError] = useState<TranslationKey | null>(null);
+  const pollInFlight = useRef(false);
+
+  const refreshTasks = useCallback(async (surfaceError = false) => {
+    if (pollInFlight.current) return;
+    pollInFlight.current = true;
+    try {
+      setTasks(await listTasks());
+      if (surfaceError) setError(null);
+    } catch (reason) {
+      if (surfaceError) setError(errorKeyForReason(reason));
+    } finally {
+      pollInFlight.current = false;
+    }
+  }, []);
 
   const reload = useCallback(async (surfaceError = true) => {
     try {
-      const [nextTasks, nextEngines] = await Promise.all([listTasks(), getEngineStatus()]);
+      const [nextTasks, nextEngines, nextSettings] = await Promise.all([
+        listTasks(),
+        getEngineStatus(),
+        getSettings(),
+      ]);
       setTasks(nextTasks);
       setEngines(nextEngines);
+      setSettings(nextSettings);
+      if (nextSettings.concurrency > 10) setCustomConcurrency(String(nextSettings.concurrency));
+      if (
+        nextSettings.speedLimitBytesPerSecond !== null &&
+        !speedPresets.includes(nextSettings.speedLimitBytesPerSecond)
+      ) {
+        setCustomSpeedKiB(String(Math.round(nextSettings.speedLimitBytesPerSecond / 1024)));
+      }
       if (surfaceError) setError(null);
     } catch (reason) {
       if (surfaceError) setError(errorKeyForReason(reason));
@@ -103,16 +188,32 @@ export default function App() {
 
   useEffect(() => {
     void reload();
-    const timer = window.setInterval(() => void reload(false), 1000);
+    const timer = window.setInterval(() => void refreshTasks(false), 5000);
     return () => window.clearInterval(timer);
-  }, [reload]);
+  }, [refreshTasks, reload]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(themeStorageKey, theme);
+  }, [theme]);
 
   const taskCount = useMemo(() => tasks.length, [tasks]);
+
+  const saveSettings = async (next: AppSettings) => {
+    setSettingsBusy(true);
+    setError(null);
+    try {
+      setSettings(await updateSettings(next));
+    } catch (reason) {
+      setError(errorKeyForReason(reason));
+    } finally {
+      setSettingsBusy(false);
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!url.trim()) return;
-
     setBusy(true);
     setError(null);
     try {
@@ -146,18 +247,168 @@ export default function App() {
     }
   };
 
+  const chooseOutputDirectory = async () => {
+    if (!settings) return;
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        defaultPath: settings.outputDirectory,
+        title: t("chooseOutputFolder"),
+      });
+      if (typeof selected === "string") {
+        await saveSettings({ ...settings, outputDirectory: selected });
+      }
+    } catch (reason) {
+      setError(errorKeyForReason(reason));
+    }
+  };
+
+  const concurrencyValue = !customConcurrencyMode && settings && settings.concurrency <= 10
+    ? String(settings.concurrency)
+    : "custom";
+  const speedValue = customSpeedMode
+    ? "custom"
+    : settings?.speedLimitBytesPerSecond === null
+    ? "none"
+    : settings && speedPresets.includes(settings.speedLimitBytesPerSecond ?? -1)
+      ? String(settings.speedLimitBytesPerSecond)
+      : "custom";
+
   return (
     <main className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true">JF</div>
+          <img className="brand-mark" src="/jivefetch-icon.png" alt="" />
           <div>
             <strong>{t("appName")}</strong>
             <span>{t("tagline")}</span>
           </div>
         </div>
+        <div className="engine-summary" aria-label={t("engineVersions")}>
+          <span>yt-dlp <strong>{versionLabel(engines?.ytDlp.version ?? null, engines?.ytDlp.available ?? false, t("available"), t("missing"))}</strong></span>
+          <span>FFmpeg <strong>{versionLabel(engines?.ffmpeg.version ?? null, engines?.ffmpeg.available ?? false, t("available"), t("missing"))}</strong></span>
+        </div>
+      </header>
 
-        <label className="language-control">
+      <section className="control-strip" aria-label={t("settings")}>
+        <label className="compact-control">
+          <span>{t("concurrentTasks")}</span>
+          <select
+            value={concurrencyValue}
+            disabled={!settings || settingsBusy}
+            onChange={(event) => {
+              if (!settings) return;
+              if (event.target.value === "custom") {
+                setCustomConcurrencyMode(true);
+                return;
+              }
+              setCustomConcurrencyMode(false);
+              void saveSettings({ ...settings, concurrency: Number(event.target.value) });
+            }}
+          >
+            {concurrencyPresets.map((value) => <option key={value} value={value}>{value}</option>)}
+            <option value="custom">{t("custom")}</option>
+          </select>
+          {concurrencyValue === "custom" ? (
+            <input
+              type="number"
+              min="1"
+              max="64"
+              value={customConcurrency}
+              aria-label={t("customConcurrency")}
+              disabled={!settings || settingsBusy}
+              onChange={(event) => setCustomConcurrency(event.target.value)}
+              onBlur={() => {
+                const value = Number(customConcurrency);
+                if (settings && Number.isInteger(value)) {
+                  void saveSettings({ ...settings, concurrency: value });
+                }
+              }}
+            />
+          ) : null}
+        </label>
+
+        <label className="compact-control">
+          <span>{t("speedLimit")}</span>
+          <select
+            value={speedValue}
+            disabled={!settings || settingsBusy}
+            onChange={(event) => {
+              if (!settings) return;
+              if (event.target.value === "custom") {
+                setCustomSpeedMode(true);
+                return;
+              }
+              setCustomSpeedMode(false);
+              const value = event.target.value === "none" ? null : Number(event.target.value);
+              void saveSettings({ ...settings, speedLimitBytesPerSecond: value });
+            }}
+          >
+            <option value="none">{t("unlimited")}</option>
+            <option value={speedPresets[0]}>512 KB/s</option>
+            <option value={speedPresets[1]}>1 MB/s</option>
+            <option value={speedPresets[2]}>2 MB/s</option>
+            <option value={speedPresets[3]}>3 MB/s</option>
+            <option value="custom">{t("custom")}</option>
+          </select>
+          {speedValue === "custom" ? (
+            <div className="unit-input">
+              <input
+                type="number"
+                min="1"
+                value={customSpeedKiB}
+                aria-label={t("customSpeed")}
+                disabled={!settings || settingsBusy}
+                onChange={(event) => setCustomSpeedKiB(event.target.value)}
+                onBlur={() => {
+                  const value = Number(customSpeedKiB);
+                  if (settings && Number.isFinite(value)) {
+                    void saveSettings({ ...settings, speedLimitBytesPerSecond: Math.round(value * 1024) });
+                  }
+                }}
+              />
+              <small>KB/s</small>
+            </div>
+          ) : null}
+        </label>
+
+        <label className="compact-control">
+          <span>{t("browserCookies")}</span>
+          <select
+            value={settings?.browserForCookies ?? "none"}
+            disabled={!settings || settingsBusy}
+            onChange={(event) => {
+              if (!settings) return;
+              void saveSettings({
+                ...settings,
+                browserForCookies: event.target.value === "none" ? null : event.target.value,
+              });
+            }}
+          >
+            <option value="none">{t("noBrowserCookies")}</option>
+            <option value="brave">Brave</option>
+            <option value="chrome">Chrome</option>
+            <option value="chromium">Chromium</option>
+            <option value="edge">Edge</option>
+            <option value="firefox">Firefox</option>
+            <option value="opera">Opera</option>
+            <option value="safari">Safari</option>
+            <option value="vivaldi">Vivaldi</option>
+            <option value="whale">Whale</option>
+          </select>
+        </label>
+
+        <label className="compact-control">
+          <span>{t("theme")}</span>
+          <select value={theme} onChange={(event) => setThemeState(event.target.value as Theme)}>
+            <option value="system">{t("themeSystem")}</option>
+            <option value="dark">{t("themeDark")}</option>
+            <option value="light">{t("themeLight")}</option>
+          </select>
+        </label>
+
+        <label className="compact-control">
           <span>{t("language")}</span>
           <select
             value={language}
@@ -169,15 +420,21 @@ export default function App() {
             <option value="zh-CN">简体中文</option>
           </select>
         </label>
-      </header>
+
+        <div className="folder-control">
+          <span>{t("outputFolder")}</span>
+          <button type="button" disabled={!settings || settingsBusy} onClick={() => void chooseOutputDirectory()}>
+            <span>{settings?.outputDirectory ?? "—"}</span>
+            <strong>{t("choose")}</strong>
+          </button>
+        </div>
+      </section>
 
       <section className="hero">
         <div>
-          <div className="eyebrow"><span className="pulse" /> {t("foundation")}</div>
+          <div className="eyebrow"><span className="pulse" /> {engines?.ready ? t("foundation") : t("enginesMissing")}</div>
           <h1>{t("localFirst")}</h1>
-          <p>{t("defaultLanguage")}</p>
         </div>
-
         <form className="url-form" onSubmit={submit}>
           <label htmlFor="media-url">{t("addUrl")}</label>
           <div className="url-row">
@@ -204,37 +461,13 @@ export default function App() {
         </div>
       ) : null}
 
-      <section className="status-grid" aria-label={t("foundation")}>
-        <article>
-          <span className="status-icon">DB</span>
-          <div>
-            <strong>{t("persistence")}</strong>
-            <p>{t("persistenceText")}</p>
-          </div>
-        </article>
-        <article>
-          <span className={`status-icon ${engines?.ready ? "" : "status-icon-warning"}`}>▶</span>
-          <div>
-            <strong>{t("engines")}</strong>
-            <p>
-              {engines?.ready
-                ? t("enginesReady").replace("{count}", String(engines.concurrency))
-                : t("enginesMissing")}
-            </p>
-            <div className="engine-versions">
-              <span>yt-dlp: {versionLabel(engines?.ytDlp.version ?? null, engines?.ytDlp.available ?? false, t("available"), t("missing"))}</span>
-              <span>FFmpeg: {versionLabel(engines?.ffmpeg.version ?? null, engines?.ffmpeg.available ?? false, t("available"), t("missing"))}</span>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      {engines ? <div className="output-folder"><strong>{t("outputFolder")}:</strong> {engines.outputDirectory}</div> : null}
-
       <section className="queue-section">
         <div className="section-heading">
           <div><span>{t("queue")}</span><strong>{taskCount}</strong><small>{t("tasks")}</small></div>
-          <button className="button button-ghost" type="button" onClick={() => void reload()}>{t("refresh")}</button>
+          <div className="queue-refresh">
+            <small>{t("autoRefresh")}</small>
+            <button className="button button-ghost" type="button" onClick={() => void refreshTasks(true)}>{t("refresh")}</button>
+          </div>
         </div>
 
         {tasks.length === 0 ? (
@@ -255,18 +488,16 @@ export default function App() {
                     <span className={stateClass(task.state)}>{t(task.state)}</span>
                     <div className="task-details">
                       <div className="task-url"><strong>{shown.host}</strong><span>{shown.path}</span></div>
-                      {activeStates.has(task.state) || task.state === "completed" ? (
-                        <div className="progress-row">
-                          <div className="progress-track" aria-label={`${progress}% ${t("complete")}`}>
-                            <span style={{ width: `${progress}%` }} />
-                          </div>
-                          <small>{progress}%</small>
+                      <div className="progress-row">
+                        <div className={progressClass(task.state)} aria-label={`${progress}% ${t("complete")}`}>
+                          <span style={{ width: `${progress}%` }} />
                         </div>
-                      ) : null}
+                        <small>{progress}%</small>
+                      </div>
                       <div className="transfer-meta">
-                        <span>{t("downloaded")}: {formatBytes(task.downloadedBytes, locale)}{task.totalBytes ? ` / ${formatBytes(task.totalBytes, locale)}` : ""}</span>
-                        {task.speed ? <span>{formatBytes(task.speed, locale)}/s</span> : null}
-                        {task.eta !== null ? <span>{t("etaLabel")}: {task.eta}s</span> : null}
+                        <span>{t("downloaded")}: {formatBytes(task.downloadedBytes, locale)} / {formatBytes(task.totalBytes, locale)}</span>
+                        <span>{t("speed")}: {task.speed ? `${formatBytes(task.speed, locale)}/s` : "—"}</span>
+                        <span>{t("etaLabel")}: {task.eta !== null ? formatDuration(task.eta) : "—"}</span>
                       </div>
                       {task.outputPath ? <div className="task-output">{task.outputPath}</div> : null}
                       {taskError ? <div className="task-error">{t(taskError)}</div> : null}

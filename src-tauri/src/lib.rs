@@ -9,7 +9,7 @@ pub mod process_supervisor;
 pub mod scheduler;
 pub mod storage;
 
-use model::{EngineStatus, QueueTask};
+use model::{AppSettings, EngineStatus, QueueTask};
 use scheduler::SchedulerRuntime;
 
 const DATABASE_FILE: &str = "jivefetch.sqlite3";
@@ -35,6 +35,19 @@ fn list_tasks(runtime: State<'_, SchedulerRuntime>) -> Result<Vec<QueueTask>, St
 #[tauri::command]
 fn engine_status(runtime: State<'_, SchedulerRuntime>) -> EngineStatus {
     runtime.engine_status()
+}
+
+#[tauri::command]
+fn get_settings(runtime: State<'_, SchedulerRuntime>) -> Result<AppSettings, String> {
+    runtime.settings()
+}
+
+#[tauri::command]
+fn update_settings(
+    settings: AppSettings,
+    runtime: State<'_, SchedulerRuntime>,
+) -> Result<AppSettings, String> {
+    runtime.update_settings(settings)
 }
 
 #[tauri::command]
@@ -71,6 +84,7 @@ fn runtime_paths(app: &tauri::App) -> Result<(PathBuf, PathBuf), Box<dyn std::er
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let (database_path, output_directory) = runtime_paths(app)?;
             let runtime = SchedulerRuntime::new(database_path, output_directory)
@@ -82,6 +96,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_tasks,
             engine_status,
+            get_settings,
+            update_settings,
             add_task,
             task_action,
             remove_task

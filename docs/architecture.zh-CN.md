@@ -11,7 +11,7 @@ JiveFetch 是长时间运行且可能失败的外部进程之上的桌面 UI。�
 管理 scheduler、恢复、探测、带宽和命令；Infrastructure 包含 SQLite、文件系统、
 keychain、时钟和平台进程；Adapters 提供 Tauri IPC/events 与 engine 集成。
 
-Domain/Application 必须能脱离 webview 和真实下载引擎测试。`0.1.1` 在 `src-tauri`
+Domain/Application 必须能脱离 webview 和真实下载引擎测试。`0.2.0` 在 `src-tauri`
 内保留明确的 `model`、`storage`、`scheduler`、`engine` 和 `process_supervisor` 模块；
 后续 crate 拆分将遵循这些已测试接口，而不是创建空边界。
 
@@ -75,6 +75,10 @@ SQLite 启用 foreign keys、WAL、busy timeout、migrations 和明确 durabilit
 和 signed URL。Task state 与 event 在同一 transaction 内写入。Attempt ownership
 使用 `run_id` 和平台 metadata；PID 单独不能证明所有权。
 
+当前 `app_settings` 单例保存已校验的并发数、可选总速度预算、非秘密 browser kind 引用
+和绝对输出目录。Migration 默认使用两个槽位、不限速、不使用浏览器 Cookie，以及系统
+Downloads 下的 `JiveFetch` 目录。
+
 ## 6. Scheduler
 
 Scheduler 是 dispatch/task state 的唯一权威，通过 channel 接收命令和进程事件，
@@ -102,9 +106,9 @@ jitter 重试。每次 retry 都是新 attempt，绝不覆盖历史。
 effective(task) = min(task_limit_or_infinity, fair_share_of_global_limit)
 ```
 
-首版向 engine 传固定 cap。活动成员或设置明显变化时，scheduler 通过
-pause/checkpoint 和可续传的新 attempt 重新平衡；变化需 debounce。以后可增加本地
-transport broker，但正确 task semantics 不依赖它。
+`0.2.0` 将总预算平均分配给已配置的 execution slot，并把固定的单 attempt 上限传给
+`yt-dlp`。这种保守分配不会超过所选总预算，但空闲槽位可能让部分带宽未被使用。设置
+变更应用于新 attempt；已由 JiveFetch 拥有的进程树不会被终止或静默重启。
 
 ## 7. Engine 抽象
 

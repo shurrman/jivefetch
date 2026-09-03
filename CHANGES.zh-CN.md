@@ -2,6 +2,27 @@
 
 # 变更记录
 
+## 0.2.0 - 2026-09-03
+
+### 新增
+
+- 持久 Rust/SQLite 设置：1–10 并发预设及已校验的自定义值、可选总速度预算、
+  browser-cookie 认证，以及默认为 `Downloads/JiveFetch` 的原生目录选择器。
+- 跟随系统、深色、浅色主题，以及覆盖所有生成平台尺寸的新高对比度 JiveFetch 图标。
+- 每五秒 authoritative 刷新队列：蓝色 active、绿色 completed、红色 failed/interrupted
+  进度，并显示 speed、ETA、当前与总大小。
+- 将 `yt-dlp`/FFmpeg 版本移到顶部，移除 SQLite/engine 实现细节卡片和多余默认语言提示。
+- 类型化 `--limit-rate` 与 `--cookies-from-browser` 参数，并加入 allowlist、migration、
+  persistence、allocation 和 argument-vector 测试。
+- `v0.1.1` 已作为首个跨平台 prerelease 发布，包含 DMG、AppImage、DEB、NSIS EXE、
+  MSI 以及各平台 SHA-256 manifest。
+
+### 指标
+
+- 之前：135 个文件、15 组共 45 个 Markdown、3,262 行应用/检查源码、8 个常规 Rust 测试。
+- 现在：140 个文件、16 组共 48 个 Markdown、4,041 行源码、14 个常规 Rust 测试，
+  以及 opt-in 真实引擎 smoke。
+
 ## 0.1.1 - 2026-09-03
 
 ### 修复

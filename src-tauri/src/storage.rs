@@ -5,9 +5,9 @@ use std::{
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::model::{AttemptReservation, ControlIntent, QueueTask};
+use crate::model::{AppSettings, AttemptReservation, ControlIntent, QueueTask};
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 4;
 
 pub struct ActionOutcome {
     pub task: QueueTask,
@@ -160,6 +160,70 @@ pub fn list_tasks(connection: &Connection) -> Result<Vec<QueueTask>, String> {
         .map_err(|_| "storageError".to_string())?;
     rows.collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| "storageError".to_string())
+}
+
+pub fn load_settings(
+    connection: &Connection,
+    default_output_directory: &Path,
+) -> Result<AppSettings, String> {
+    let default_output = default_output_directory.to_string_lossy().into_owned();
+    connection
+        .execute(
+            "INSERT OR IGNORE INTO app_settings
+             (id, concurrency, speed_limit_bytes_per_second, browser_for_cookies, output_directory)
+             VALUES (1, 2, NULL, NULL, ?1)",
+            [&default_output],
+        )
+        .map_err(|_| "storageError".to_string())?;
+    connection
+        .query_row(
+            "SELECT concurrency, speed_limit_bytes_per_second, browser_for_cookies, output_directory
+             FROM app_settings WHERE id = 1",
+            [],
+            |row| {
+                let concurrency = row.get::<_, i64>(0)?;
+                let speed_limit = row.get::<_, Option<i64>>(1)?;
+                Ok(AppSettings {
+                    concurrency: usize::try_from(concurrency).unwrap_or_default(),
+                    speed_limit_bytes_per_second: speed_limit
+                        .and_then(|value| u64::try_from(value).ok()),
+                    browser_for_cookies: row.get(2)?,
+                    output_directory: row.get(3)?,
+                })
+            },
+        )
+        .map_err(|_| "storageError".to_string())
+}
+
+pub fn save_settings(connection: &mut Connection, settings: &AppSettings) -> Result<(), String> {
+    let concurrency = i64::try_from(settings.concurrency).map_err(|_| "invalidConcurrency")?;
+    let speed_limit = settings
+        .speed_limit_bytes_per_second
+        .map(i64::try_from)
+        .transpose()
+        .map_err(|_| "invalidSpeedLimit")?;
+    let transaction = connection
+        .transaction()
+        .map_err(|_| "storageError".to_string())?;
+    transaction
+        .execute(
+            "INSERT INTO app_settings
+             (id, concurrency, speed_limit_bytes_per_second, browser_for_cookies, output_directory)
+             VALUES (1, ?1, ?2, ?3, ?4)
+             ON CONFLICT(id) DO UPDATE SET
+               concurrency = excluded.concurrency,
+               speed_limit_bytes_per_second = excluded.speed_limit_bytes_per_second,
+               browser_for_cookies = excluded.browser_for_cookies,
+               output_directory = excluded.output_directory",
+            params![
+                concurrency,
+                speed_limit,
+                settings.browser_for_cookies,
+                settings.output_directory
+            ],
+        )
+        .map_err(|_| "storageError".to_string())?;
+    transaction.commit().map_err(|_| "storageError".to_string())
 }
 
 pub fn load_task(connection: &Connection, task_id: &str) -> Result<QueueTask, String> {
@@ -493,14 +557,48 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 schema_sql()
             ))
             .map_err(|_| "storageError".to_string())?;
-    } else if version < SCHEMA_VERSION {
+    } else if version < 2 {
         migrate_legacy_tasks(connection)?;
+    } else if version < 3 {
+        connection
+            .execute_batch(&format!(
+                "{} PRAGMA user_version = 3;",
+                settings_schema_v3_sql()
+            ))
+            .map_err(|_| "storageError".to_string())?;
+        migrate_browser_cookie_setting(connection)?;
+    } else if version < SCHEMA_VERSION {
+        migrate_browser_cookie_setting(connection)?;
     } else {
         connection
             .execute_batch(schema_sql())
             .map_err(|_| "storageError".to_string())?;
     }
     Ok(())
+}
+
+fn migrate_browser_cookie_setting(connection: &Connection) -> Result<(), String> {
+    let has_column: bool = connection
+        .query_row(
+            "SELECT EXISTS(
+                SELECT 1 FROM pragma_table_info('app_settings')
+                WHERE name = 'browser_for_cookies'
+            )",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| "storageError".to_string())?;
+    if !has_column {
+        connection
+            .execute(
+                "ALTER TABLE app_settings ADD COLUMN browser_for_cookies TEXT",
+                [],
+            )
+            .map_err(|_| "storageError".to_string())?;
+    }
+    connection
+        .pragma_update(None, "user_version", SCHEMA_VERSION)
+        .map_err(|_| "storageError".to_string())
 }
 
 fn migrate_legacy_tasks(connection: &Connection) -> Result<(), String> {
@@ -559,7 +657,23 @@ fn schema_sql() -> &'static str {
         error_code TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_attempts_task
-        ON attempts(task_id, started_at DESC);"
+        ON attempts(task_id, started_at DESC);
+    CREATE TABLE IF NOT EXISTS app_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        concurrency INTEGER NOT NULL,
+        speed_limit_bytes_per_second INTEGER,
+        browser_for_cookies TEXT,
+        output_directory TEXT NOT NULL
+    );"
+}
+
+fn settings_schema_v3_sql() -> &'static str {
+    "CREATE TABLE IF NOT EXISTS app_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        concurrency INTEGER NOT NULL,
+        speed_limit_bytes_per_second INTEGER,
+        output_directory TEXT NOT NULL
+    );"
 }
 
 #[cfg(test)]
@@ -567,10 +681,10 @@ mod tests {
     use rusqlite::Connection;
 
     use super::{
-        apply_action, insert_task, open_database, prepare_shutdown, recover_interrupted,
-        settle_orphaned_control,
+        apply_action, insert_task, load_settings, open_database, prepare_shutdown,
+        recover_interrupted, save_settings, settle_orphaned_control,
     };
-    use crate::model::ControlIntent;
+    use crate::model::{AppSettings, ControlIntent};
 
     #[test]
     fn migrates_legacy_queue_without_losing_tasks() {
@@ -593,6 +707,71 @@ mod tests {
         let tasks = super::list_tasks(&connection).unwrap();
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].url, "https://example.com/a");
+    }
+
+    #[test]
+    fn migrates_v2_and_persists_download_settings() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("queue.sqlite3");
+        {
+            let connection = open_database(&path).unwrap();
+            insert_task(&connection, "https://example.com/a").unwrap();
+            connection.execute("DROP TABLE app_settings", []).unwrap();
+            connection.pragma_update(None, "user_version", 2).unwrap();
+        }
+
+        let mut connection = open_database(&path).unwrap();
+        let default_output = directory.path().join("Downloads/JiveFetch");
+        let defaults = load_settings(&connection, &default_output).unwrap();
+        assert_eq!(defaults.concurrency, 2);
+        assert_eq!(defaults.speed_limit_bytes_per_second, None);
+        assert_eq!(defaults.browser_for_cookies, None);
+        assert_eq!(super::list_tasks(&connection).unwrap().len(), 1);
+
+        let configured = AppSettings {
+            concurrency: 7,
+            speed_limit_bytes_per_second: Some(2 * 1024 * 1024),
+            browser_for_cookies: Some("firefox".to_string()),
+            output_directory: directory
+                .path()
+                .join("Media")
+                .to_string_lossy()
+                .into_owned(),
+        };
+        save_settings(&mut connection, &configured).unwrap();
+        assert_eq!(
+            load_settings(&connection, &default_output).unwrap(),
+            configured
+        );
+    }
+
+    #[test]
+    fn migrates_v3_settings_without_cookie_column() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("queue.sqlite3");
+        {
+            let connection = open_database(&path).unwrap();
+            connection
+                .execute_batch(
+                    "DROP TABLE app_settings;
+                     CREATE TABLE app_settings (
+                       id INTEGER PRIMARY KEY CHECK (id = 1),
+                       concurrency INTEGER NOT NULL,
+                       speed_limit_bytes_per_second INTEGER,
+                       output_directory TEXT NOT NULL
+                     );
+                     INSERT INTO app_settings VALUES (1, 4, 524288, '/tmp/JiveFetch');
+                     PRAGMA user_version = 3;",
+                )
+                .unwrap();
+        }
+
+        let connection = open_database(&path).unwrap();
+        let settings = load_settings(&connection, directory.path()).unwrap();
+        assert_eq!(settings.concurrency, 4);
+        assert_eq!(settings.speed_limit_bytes_per_second, Some(512 * 1024));
+        assert_eq!(settings.browser_for_cookies, None);
+        assert_eq!(settings.output_directory, "/tmp/JiveFetch");
     }
 
     #[test]

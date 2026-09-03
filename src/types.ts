@@ -39,6 +39,13 @@ export interface EngineStatus {
   ready: boolean;
   ytDlp: EngineInfo;
   ffmpeg: EngineInfo;
-  outputDirectory: string;
-  concurrency: number;
 }
+
+export interface AppSettings {
+  concurrency: number;
+  speedLimitBytesPerSecond: number | null;
+  browserForCookies: string | null;
+  outputDirectory: string;
+}
+
+export type Theme = "system" | "light" | "dark";

@@ -37,6 +37,8 @@ JiveFetch 是本地优先的 Tauri 桌面应用；Rust 拥有队列、持久状�
 
 - 队列、任务生命周期和进程所有权属于 Rust；React 只是投影。
 - scheduler 状态变更必须先事务写入 SQLite，再发布 UI 事件。
+- 用户并发数、全局速度限制和输出目录必须保存在 SQLite 中并由 Rust scheduler 执行；
+  UI 控件不是第二事实来源。
 - PID 不是所有权。只能停止本应用拥有的 Unix process group/session 或 Windows
   Job Object，绝不按可执行文件名批量 kill。
 - 跨平台暂停是可恢复的受控停止加新 attempt；OS suspend 只能作为优化。

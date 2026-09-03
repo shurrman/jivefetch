@@ -6,21 +6,29 @@ Last updated: 2026-09-03
 
 ## Current state
 
-- Version `0.1.1` is a working initial download preview using Tauri 2, React, Rust/SQLite,
+- Version `0.2.0` is the active next preview using Tauri 2, React, Rust/SQLite,
   locally installed `yt-dlp`, and FFmpeg.
-- A two-slot Rust scheduler owns typed process plans, attempts, progress, and
-  Pause/Resume/Stop/Remove with optimistic task revisions.
+- A configurable Rust scheduler owns typed process plans, attempts, progress, aggregate
+  speed allocation, and Pause/Resume/Stop/Remove with optimistic task revisions.
+- Persistent non-secret settings cover concurrency (default 2, presets 1–10, validated
+  custom values up to 64), aggregate speed, a yt-dlp browser-cookie selector, and an
+  output directory that defaults to `Downloads/JiveFetch`.
+- The UI polls the authoritative queue every five seconds, shows colored per-task
+  progress/speed/ETA/sizes, exposes system/dark/light themes, and uses the new vivid icon.
 - The UI and every Markdown document have EN/RU/Simplified Chinese variants. A clean
   first run defaults to EN; an explicit language choice is stored locally.
 - The supervisor owns Unix process groups or Windows Job Objects, drains bounded
   output, and terminates only the tree it created.
-- The real-engine loopback smoke test passes with yt-dlp `2026.07.04` and FFmpeg
-  `8.1.2`; the unrelated-process supervisor test also passes on macOS.
+- The regular Rust suite has 14 tests, including v2/v3 settings migrations, typed engine
+  arguments, and unrelated-process ownership. The opt-in real-engine loopback smoke is
+  the final local runtime gate for `v0.2.0`.
 - The first remote native source CI passed on Windows, macOS, and Linux in GitHub
   Actions run `33779282453`.
 - GitHub CLI is authenticated as `shurrman`; private repository
   `https://github.com/shurrman/jivefetch` is configured as `origin`. Candidate
-  `v0.1.0` exposed missing explicit Linux/Windows bundle icons; `v0.1.1` fixes both.
+  `v0.1.0` exposed missing explicit Linux/Windows bundle icons. Native CI run
+  `33783089736` and Native Release run `33784331491` completed successfully for
+  `v0.1.1`, which is published with eight macOS/Linux/Windows artifacts.
 - Architecture and delivery contracts are documented under `docs/`.
 - JiveFetch source is Apache-2.0. System engines are not redistributed.
 - Linux inherits `glib 0.18.5` from Tauri/GTK. `GHSA-wrw7-89jp-8q8g` affects an API
@@ -43,9 +51,10 @@ Last updated: 2026-09-03
   attempt. OS process suspension is not the portable contract.
 - JiveFetch terminates only process trees it created: process groups/sessions on
   Unix and Job Objects on Windows. Never kill by executable name.
-- Browser-cookie mode stores only browser/profile selection. Imported cookie data
-  is encrypted at rest with a random key held by the OS credential store and is
-  decrypted into a restrictive temporary file only while a child process needs it.
+- Browser-cookie mode stores only an allowlisted browser identifier and passes it as
+  a typed `yt-dlp --cookies-from-browser` argument; cookie values are never copied.
+  Future imported-cookie data must be encrypted with a random key held by the OS
+  credential store and decrypted only into a restrictive short-lived file.
 - Format choices are probed dynamically and compiled by Rust from typed user intent;
   the UI must not pass arbitrary shell command strings.
 - Global and per-task speed limits are separate policies. The scheduler computes an
@@ -74,8 +83,9 @@ Last updated: 2026-09-03
 
 ## Next actions
 
-1. Observe the `v0.1.1` Windows/macOS/Linux release workflow and verify every uploaded
-   package/checksum before treating the preview artifacts as complete.
+1. Complete the `v0.2.0` local app/real-engine/package checks, then require green native
+   CI on Windows/macOS/Linux before tagging and publishing the prerelease.
 2. Add metadata probing, format choice, and ffprobe capability reporting.
 3. Expand storage with artifacts/events, idempotency, retry policy, and pagination.
-4. Add credential-store-backed cookies and managed-engine verification before release.
+4. Add profile/keyring detail and encrypted cookie-file import without exposing values.
+5. Add signing/notarization and verified managed engines before a stable release.

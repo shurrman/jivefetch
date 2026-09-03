@@ -16,7 +16,7 @@ JiveFetch — desktop UI над долгоживущими внешними пр
 - **Adapters:** Tauri IPC/events и конкретные интеграции `yt-dlp`/`ffmpeg`/`aria2`.
 
 Domain и Application должны компилироваться и тестироваться без webview и реальных
-download engines. В `0.1.1` модули `model`, `storage`, `scheduler`, `engine` и
+download engines. В `0.2.0` модули `model`, `storage`, `scheduler`, `engine` и
 `process_supervisor` остаются в `src-tauri`; последующий crate split пойдёт по уже
 проверенным интерфейсам, а не создаст пустые границы.
 
@@ -83,6 +83,11 @@ Cookies и credential values никогда не попадают в SQLite; pro
 secret-bearing headers и signed URLs. State задачи и её event пишутся одной transaction.
 Attempt ownership использует `run_id` и platform metadata; PID сам по себе информативен.
 
+Текущий singleton `app_settings` хранит проверенные concurrency, необязательный суммарный
+бюджет скорости, несекретную ссылку на browser kind и абсолютную output directory.
+Migration задаёт два слота, отсутствие лимита/cookies и системную папку Загрузки плюс
+`JiveFetch`.
+
 ## 6. Scheduler
 
 Scheduler — actor-like Rust service и единственный владелец dispatch/state. Он получает
@@ -114,10 +119,11 @@ extractor failures и crash управляемого engine получают о�
 effective(task) = min(task_limit_or_infinity, fair_share_of_global_limit)
 ```
 
-Сначала фиксированный cap передаётся engine. При существенном изменении состава задач или
-settings scheduler делает rebalance через pause/checkpoint и новый resumable attempt,
-поскольку `yt-dlp` не везде умеет менять rate на лету. Изменения allocation debounced.
-Позже возможен local transport broker, но для корректной task semantics он не обязателен.
+В `0.2.0` суммарный бюджет делится между настроенными execution slots, а фиксированный
+лимит attempt передаётся `yt-dlp`. Консервативное распределение не превышает выбранный
+бюджет, хотя свободные слоты могут оставлять часть bandwidth неиспользованной. Изменения
+применяются к новым attempts; уже принадлежащие JiveFetch процессы не завершаются и не
+перезапускаются скрытно.
 
 ## 7. Абстракция engine
 

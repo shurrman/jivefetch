@@ -43,6 +43,9 @@ Preferred mode stores only:
 The engine receives the corresponding `--cookies-from-browser` style argument. Raw
 cookie values are not copied into JiveFetch storage. The UI explains that the browser
 may need to be closed or unlocked depending on the platform and engine behavior.
+Version `0.2.0` limits the persisted kind to yt-dlp's documented Brave, Chrome, Chromium,
+Edge, Firefox, Opera, Safari, Vivaldi, and Whale identifiers; profile/keyring input is
+not yet exposed.
 
 ### 3.2 Imported cookie file
 
@@ -164,6 +167,6 @@ Security-sensitive failures block release rather than degrading to an insecure m
 The Linux dependency graph currently inherits `glib 0.18.5` through Tauri and GTK
 0.18. It is affected by `GHSA-wrw7-89jp-8q8g` in `VariantStrIter`; JiveFetch does not
 call that API. The patched `glib 0.20` is incompatible with GTK's current `^0.18`
-constraint, so this is an explicit temporary exception for the private `v0.1.0`
-pre-release only. Updating the Tauri/GTK chain or otherwise removing the advisory is
+constraint, so this is an explicit temporary exception for the private preview line
+through `v0.2.0`. Updating the Tauri/GTK chain or otherwise removing the advisory is
 a stable-release gate.

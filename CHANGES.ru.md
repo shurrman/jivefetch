@@ -2,6 +2,31 @@
 
 # Изменения
 
+## 0.2.0 - 2026-09-03
+
+### Добавлено
+
+- Устойчивые Rust/SQLite settings: concurrency presets 1–10 и своё проверяемое значение,
+  необязательный суммарный бюджет скорости, browser-cookie authentication и нативный
+  выбор папки с default `Загрузки/JiveFetch`.
+- Системная, тёмная и светлая темы и новая контрастная иконка JiveFetch во всех
+  сгенерированных platform-размерах.
+- Authoritative refresh очереди каждые пять секунд: синий active, зелёный completed,
+  красный failed/interrupted progress, а также speed, ETA и текущий/общий размер.
+- Версии `yt-dlp`/FFmpeg перенесены в шапку; технические SQLite/engine-плашки и лишнее
+  сообщение о языке удалены.
+- Типизированные аргументы `--limit-rate` и `--cookies-from-browser` с allowlist,
+  migration, persistence, allocation и argument-vector тестами.
+- `v0.1.1` опубликован как первый cross-platform prerelease: DMG, AppImage, DEB,
+  NSIS EXE, MSI и SHA-256 manifests для каждой платформы.
+
+### Метрики
+
+- Было: 135 файлов, 45 Markdown-документов в 15 translation sets, 3 262 строки
+  application/check source и 8 обычных Rust-тестов.
+- Стало: 140 файлов, 48 Markdown-документов в 16 translation sets, 4 041 строка,
+  14 обычных Rust-тестов и opt-in real-engine smoke.
+
 ## 0.1.1 - 2026-09-03
 
 ### Исправлено

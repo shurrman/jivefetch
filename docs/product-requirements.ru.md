@@ -52,6 +52,8 @@ JiveFetch — local-first desktop-приложение для добавлени
 
 - SQLite хранит tasks, priority/order, policy, attempts, progress и artifacts.
 - Отдельные limits для network и post-processing, output-path lock, priority aging.
+- Desktop-контрол предлагает presets 1–10 и проверяемое своё значение; default первого
+  запуска — 2. Уменьшение значения не завершает уже работающие задачи.
 - Один live attempt на task; transient errors получают bounded retry/backoff.
 - Ошибка одной задачи не блокирует остальные.
 
@@ -80,6 +82,8 @@ JiveFetch — local-first desktop-приложение для добавлени
 - Per-task ceiling и fair application-wide ceiling.
 - Effective limit ограничен обоими; изменение может вызвать debounced resumable restart.
 - После стабилизации aggregate traffic не превышает 110% global limit.
+- В `0.2.0` общий предел консервативно делится между configured slots для новых attempts;
+  будущий broker сможет перераспределять ёмкость свободных слотов.
 
 ### FR-8 History, artifacts и diagnostics
 
@@ -112,6 +116,9 @@ Hard kill не повреждает очередь и не порождает du
 ### Accessibility и UX
 
 Keyboard path, accessible labels, visible focus; states не кодируются только цветом.
+Активная очередь обновляется минимум раз в пять секунд и показывает progress, state,
+speed, ETA, загруженный и общий размер для каждой задачи. Версии движков и настройки
+concurrency, скорости, темы, языка и папки остаются в верхней зоне без технических плашек.
 
 ## 6. Граница MVP
 

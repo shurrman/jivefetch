@@ -4,6 +4,31 @@
 
 This file records validated project-level changes and before/after metrics.
 
+## 0.2.0 - 2026-09-03
+
+### Added
+
+- Added persistent Rust/SQLite settings for 1–10 concurrency presets plus a validated
+  custom value, an optional aggregate speed budget, browser-cookie authentication, and
+  a native output-directory picker that defaults to `Downloads/JiveFetch`.
+- Added system, dark, and light themes and a new high-contrast JiveFetch icon across
+  desktop and generated platform icon sizes.
+- Added a five-second authoritative queue refresh with blue active, green completed,
+  and red failed/interrupted progress bars plus speed, ETA, and current/total size.
+- Moved `yt-dlp` and FFmpeg versions to the header and removed the SQLite and engine
+  implementation-detail cards and redundant default-language message.
+- Added typed `--limit-rate` and `--cookies-from-browser` plan arguments with allowlist,
+  migration, persistence, allocation, and argument-vector tests.
+- Published `v0.1.1` as the first cross-platform prerelease with DMG, AppImage, DEB,
+  NSIS EXE, MSI, and per-platform SHA-256 manifests.
+
+### Metrics
+
+- Before: 135 repository files, 45 Markdown documents in 15 translation sets, 3,262
+  application/check source lines, and 8 regular Rust tests.
+- After: 140 repository files, 48 Markdown documents in 16 translation sets, 4,041
+  application/check source lines, and 14 regular Rust tests plus the opt-in real-engine smoke.
+
 ## 0.1.1 - 2026-09-03
 
 ### Fixed

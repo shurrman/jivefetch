@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -32,8 +32,15 @@ pub struct EngineStatus {
     pub ready: bool,
     pub yt_dlp: EngineInfo,
     pub ffmpeg: EngineInfo,
-    pub output_directory: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettings {
     pub concurrency: usize,
+    pub speed_limit_bytes_per_second: Option<u64>,
+    pub browser_for_cookies: Option<String>,
+    pub output_directory: String,
 }
 
 #[derive(Debug, Clone)]

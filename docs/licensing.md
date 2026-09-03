@@ -15,7 +15,7 @@ engineering record, not legal advice.
 
 ## Current engine model
 
-Version `0.1.1` discovers and invokes user-installed `yt-dlp` and FFmpeg by
+Version `0.2.0` discovers and invokes user-installed `yt-dlp` and FFmpeg by
 absolute path. JiveFetch does not currently redistribute either executable.
 The process supervisor passes a typed argument list directly, without a shell.
 

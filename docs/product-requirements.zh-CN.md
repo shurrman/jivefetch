@@ -49,6 +49,8 @@ JiveFetch 是本地优先的桌面应用，用于添加、探测、排队和控�
 
 - SQLite 保存 task、优先级/顺序、policy、attempt、progress 和 artifact。
 - 网络和后处理独立并发限制，输出路径锁，priority aging。
+- 桌面控件提供 1–10 预设和已校验的自定义值；首次运行默认为 2。降低该值不会终止
+  已在运行的任务。
 - 每个 task 最多一个 live attempt；仅 transient error 进入有界 backoff retry。
 - 单个失败不能阻塞其他任务。
 
@@ -74,6 +76,8 @@ JiveFetch 是本地优先的桌面应用，用于添加、探测、排队和控�
 
 - 支持 per-task ceiling 与公平的全局 ceiling；不支持动态限速的 engine 通过
   debounced resumable restart 重平衡；稳定后总流量不超过设定值的 110%。
+- `0.2.0` 对新 attempt 将全局上限保守地分配给 configured slot；未来 broker 可回收
+  空闲 slot 的容量。
 
 ### FR-8 历史、artifacts 与 diagnostics
 
@@ -104,6 +108,8 @@ Tauri capability 最小化，禁止 remote script，redaction 在持久化前完
 ### Accessibility 与 UX
 
 所有控制支持键盘和无障碍，不只用颜色表达状态。
+活动队列至少每五秒刷新，并为每个任务显示 progress、state、speed、ETA、已下载和总大小。
+引擎版本以及并发、速度、主题、语言与目录控件始终位于顶部，不显示实现细节卡片。
 
 ## 6. MVP 边界
 
