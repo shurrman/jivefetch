@@ -99,7 +99,6 @@ documented in [Architecture](docs/architecture.md).
 - [Change log](CHANGES.md)
 - [v0.1.1 release notes](docs/releases/v0.1.1.md)
 - [v0.2.0 release notes](docs/releases/v0.2.0.md)
-- [Project memory](MEMORY.md)
 
 ## Run locally on macOS
 

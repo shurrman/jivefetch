@@ -122,4 +122,4 @@ Post-MVP：extension、library/player、subscription、plugin、remote/cloud、t
 ## 每个 phase 的 Definition of done
 
 每阶段都要求 EN/RU/简体中文同步、相关测试、failure/restart path、无秘密 fixture、diff/link
-check、CHANGES 指标和更新后的 MEMORY。
+check 和 CHANGES 指标。

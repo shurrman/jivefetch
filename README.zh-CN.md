@@ -82,7 +82,6 @@ README.*.md       多语言项目入口
 - [变更记录](CHANGES.zh-CN.md)
 - [v0.1.1 发布说明](docs/releases/v0.1.1.zh-CN.md)
 - [v0.2.0 发布说明](docs/releases/v0.2.0.zh-CN.md)
-- [项目记忆](MEMORY.zh-CN.md)
 
 ## 在 macOS 本地运行
 

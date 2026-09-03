@@ -204,4 +204,3 @@ reporting remain.
 - Logs/fixtures contain no secrets.
 - `git diff --check` and relative Markdown-link validation pass.
 - `CHANGES.md` records before/after metrics and known pre-existing issues.
-- `MEMORY.md` records only durable, validated decisions and the next continuation point.

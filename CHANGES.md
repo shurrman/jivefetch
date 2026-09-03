@@ -23,12 +23,14 @@ This file records validated project-level changes and before/after metrics.
   NSIS EXE, MSI, and per-platform SHA-256 manifests.
 - Published `v0.2.0` after Native CI and Native Release succeeded on macOS, Linux,
   and Windows, with eight installer/checksum assets.
+- Moved local `AGENTS*` and `MEMORY*` context out of version control while preserving
+  local working copies through explicit ignore rules.
 
 ### Metrics
 
 - Before: 135 repository files, 45 Markdown documents in 15 translation sets, 3,262
   application/check source lines, and 8 regular Rust tests.
-- After: 140 repository files, 48 Markdown documents in 16 translation sets, 4,041
+- After: 134 repository files, 42 Markdown documents in 14 translation sets, 4,039
   application/check source lines, and 14 regular Rust tests plus the opt-in real-engine smoke.
 
 ## 0.1.1 - 2026-09-03

@@ -27,8 +27,8 @@ After a user explicitly selects a language, that choice is stored locally and re
 ## Documentation
 
 English files use the unsuffixed name. Russian files use `.ru.md`; Simplified Chinese
-files use `.zh-CN.md`. `AGENTS.md` is the legacy Russian canonical instruction file,
-with `AGENTS.en.md` and `AGENTS.zh-CN.md` translations.
+files use `.zh-CN.md`. Local agent instructions and memory are not versioned product
+documentation and are excluded from repository translation-set validation.
 
 Every Markdown file begins with direct links to its three language variants. Links
 inside a translation should lead to the same-language target where one exists.

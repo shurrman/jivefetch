@@ -21,12 +21,14 @@
   NSIS EXE, MSI и SHA-256 manifests для каждой платформы.
 - `v0.2.0` опубликован после успешных Native CI и Native Release на macOS, Linux и
   Windows с восемью installer/checksum artifacts.
+- Локальные `AGENTS*` и `MEMORY*` убраны из version control, но рабочие копии сохранены
+  точными правилами ignore.
 
 ### Метрики
 
 - Было: 135 файлов, 45 Markdown-документов в 15 translation sets, 3 262 строки
   application/check source и 8 обычных Rust-тестов.
-- Стало: 140 файлов, 48 Markdown-документов в 16 translation sets, 4 041 строка,
+- Стало: 134 файла, 42 Markdown-документа в 14 translation sets, 4 039 строк,
   14 обычных Rust-тестов и opt-in real-engine smoke.
 
 ## 0.1.1 - 2026-09-03

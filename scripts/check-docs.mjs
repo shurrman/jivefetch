@@ -4,8 +4,6 @@ import { dirname, join, resolve } from "node:path";
 const rootSets = [
   ["README.md", "README.ru.md", "README.zh-CN.md"],
   ["CHANGES.md", "CHANGES.ru.md", "CHANGES.zh-CN.md"],
-  ["MEMORY.md", "MEMORY.ru.md", "MEMORY.zh-CN.md"],
-  ["AGENTS.en.md", "AGENTS.md", "AGENTS.zh-CN.md"],
 ];
 
 const collectMarkdown = (directory) =>

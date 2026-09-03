@@ -83,7 +83,6 @@ Rust-модулями в `src-tauri`; целевые границы crates оп�
 - [Изменения](CHANGES.ru.md)
 - [Примечания к выпуску v0.1.1](docs/releases/v0.1.1.ru.md)
 - [Примечания к выпуску v0.2.0](docs/releases/v0.2.0.ru.md)
-- [Память проекта](MEMORY.ru.md)
 
 ## Локальный запуск на macOS
 

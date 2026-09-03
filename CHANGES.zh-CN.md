@@ -18,11 +18,13 @@
   MSI 以及各平台 SHA-256 manifest。
 - `v0.2.0` 已在 macOS、Linux、Windows 的 Native CI 与 Native Release 全部成功后
   发布，包含八个 installer/checksum artifact。
+- 本地 `AGENTS*` 与 `MEMORY*` context 已移出 version control，并通过明确 ignore
+  规则保留工作副本。
 
 ### 指标
 
 - 之前：135 个文件、15 组共 45 个 Markdown、3,262 行应用/检查源码、8 个常规 Rust 测试。
-- 现在：140 个文件、16 组共 48 个 Markdown、4,041 行源码、14 个常规 Rust 测试，
+- 现在：134 个文件、14 组共 42 个 Markdown、4,039 行源码、14 个常规 Rust 测试，
   以及 opt-in 真实引擎 smoke。
 
 ## 0.1.1 - 2026-09-03

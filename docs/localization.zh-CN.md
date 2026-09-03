@@ -23,8 +23,8 @@
 
 ## 文档
 
-英语文件不加后缀，俄语使用 `.ru.md`，简体中文使用 `.zh-CN.md`。历史例外是俄语
-规范文件 `AGENTS.md`，其翻译为 `AGENTS.en.md` 和 `AGENTS.zh-CN.md`。
+英语文件不加后缀，俄语使用 `.ru.md`，简体中文使用 `.zh-CN.md`。本地 agent 指令和
+memory 不属于版本化产品文档，因此不参与仓库 translation set 校验。
 
 每个 Markdown 顶部必须直接链接三个语言版本。翻译中的内部链接应尽量指向同语言文件。
 

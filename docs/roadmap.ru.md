@@ -129,4 +129,4 @@ broker, constrained expert policy language.
 ## Definition of done для каждой phase
 
 Каждая фаза: synced EN/RU/简体中文 docs/UI, relevant tests, failure/restart paths,
-secret-free fixtures, diff/link checks, CHANGES metrics и updated MEMORY.
+secret-free fixtures, diff/link checks и CHANGES metrics.

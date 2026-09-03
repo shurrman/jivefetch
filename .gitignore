@@ -28,11 +28,11 @@ vault_pass*
 *.vault_pass
 .vault_password*
 
-# AI-agent config: общие файлы (.claude/AGENT.md, settings.json) идут в git;
-# локальные — нет
+# AI-agent config: runtime context remains local
 .claude/settings.local.json
 .claude/worktrees/
-#
+AGENTS*
+MEMORY*
 
 # JiveFetch: frontend, Rust and Tauri build output
 node_modules/
