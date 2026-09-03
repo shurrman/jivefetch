@@ -76,6 +76,8 @@ cross-compiled binary alone is not sufficient evidence.
 ### macOS
 
 - Build arm64 and x86_64 artifacts natively or produce a verified universal bundle.
+- Document the temporary, checksum-first procedure for
+  [installing an unsigned macOS release](macos-installation.md).
 - Sign nested sidecars in the correct order, enable hardened runtime, and notarize the
   final deliverable.
 - Keep mutable engine overrides outside the sealed application bundle.

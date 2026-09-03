@@ -41,7 +41,9 @@ long/non-ASCII paths, AV latency и safe uninstall.
 ### macOS
 
 Native/universal builds, nested signing, hardened runtime, notarization, mutable engines
-вне sealed bundle, Gatekeeper/quarantine/keychain/sleep tests.
+вне sealed bundle, Gatekeeper/quarantine/keychain/sleep tests. До включения production
+signing документировать временную [установку неподписанного релиза](macos-installation.ru.md)
+с обязательной проверкой checksum.
 
 ### Linux
 

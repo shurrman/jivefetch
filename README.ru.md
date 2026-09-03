@@ -76,6 +76,7 @@ Rust-модулями в `src-tauri`; целевые границы crates оп�
 - [Жизненный цикл задач](docs/task-lifecycle.ru.md)
 - [Безопасность](docs/security.ru.md)
 - [Упаковка](docs/packaging.ru.md)
+- [Установка неподписанного релиза на macOS](docs/macos-installation.ru.md)
 - [Лицензирование и сторонние движки](docs/licensing.ru.md)
 - [Roadmap](docs/roadmap.ru.md)
 - [Исследовательские ориентиры](docs/research-references.ru.md)

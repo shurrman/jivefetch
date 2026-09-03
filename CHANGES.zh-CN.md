@@ -25,6 +25,8 @@
 - 删除了不完整的 `v0.1.0` draft release，且未重新构建 artifact 就将 `v0.2.0`
   设为 GitHub `Latest`；后续成功发布的版本也会自动成为 `Latest`。签名与 notarization
   仍是独立的 production gate。
+- 新增 EN/RU/简体中文 macOS 安装说明：先验证 checksum，再为当前未签名应用创建本地
+  ad-hoc 签名，并仅移除该应用的 quarantine 属性。
 
 ### 指标
 

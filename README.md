@@ -92,6 +92,7 @@ documented in [Architecture](docs/architecture.md).
 - [Task lifecycle and recovery](docs/task-lifecycle.md)
 - [Security and authentication](docs/security.md)
 - [Cross-platform packaging](docs/packaging.md)
+- [Install an unsigned macOS release](docs/macos-installation.md)
 - [Licensing and third-party engines](docs/licensing.md)
 - [Roadmap](docs/roadmap.md)
 - [Research references](docs/research-references.md)

@@ -40,7 +40,8 @@ long/non-ASCII path、杀毒延迟和安全卸载测试。
 ### macOS
 
 需要 native/universal build、nested signing、hardened runtime、notarization、bundle 外
-可变 engine、Gatekeeper/keychain/sleep 测试。
+可变 engine、Gatekeeper/keychain/sleep 测试。在启用 production signing 前，需要记录先验证
+checksum 的临时[未签名版本安装步骤](macos-installation.zh-CN.md)。
 
 ### Linux
 

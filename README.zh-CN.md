@@ -75,6 +75,7 @@ README.*.md       多语言项目入口
 - [任务生命周期](docs/task-lifecycle.zh-CN.md)
 - [安全与认证](docs/security.zh-CN.md)
 - [跨平台打包](docs/packaging.zh-CN.md)
+- [在 macOS 上安装未签名 release](docs/macos-installation.zh-CN.md)
 - [许可与第三方引擎](docs/licensing.zh-CN.md)
 - [路线图](docs/roadmap.zh-CN.md)
 - [研究参考](docs/research-references.zh-CN.md)

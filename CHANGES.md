@@ -30,6 +30,9 @@ This file records validated project-level changes and before/after metrics.
 - Removed the incomplete `v0.1.0` draft release, promoted `v0.2.0` to GitHub `Latest`
   without rebuilding its artifacts, and made future successful releases become
   `Latest` automatically. Signing and notarization remain separate production gates.
+- Added checksum-first macOS installation instructions in English, Russian, and
+  Simplified Chinese for locally ad-hoc signing and narrowly removing quarantine from
+  the current unsigned application.
 
 ### Metrics
 
