@@ -277,7 +277,7 @@ mod tests {
         let directories = std::env::split_paths(&child_path().unwrap()).collect::<Vec<_>>();
 
         #[cfg(windows)]
-        assert!(child_path().is_some());
+        assert!(child_path().is_ok());
 
         #[cfg(target_os = "macos")]
         assert!(directories.contains(&std::path::PathBuf::from("/opt/homebrew/bin")));
