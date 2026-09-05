@@ -19,9 +19,10 @@ The design follows four boundaries:
 The domain and application layers must compile and test without a webview or real
 download engines.
 
-Version `0.2.0` keeps explicit `model`, `storage`, `scheduler`, `engine`, and
-`process_supervisor` modules inside `src-tauri`. A later crate split will follow these
-now-tested interfaces instead of creating empty boundaries.
+Version `0.4.0` keeps one scheduler authority while extracting typed error and diagnostics
+modules, engine binary discovery, a `YtDlpExecutor`, and narrow engine/process traits used
+by scheduler test doubles. A later crate split will follow these tested seams instead of
+creating empty boundaries or splitting ownership of a live process tree.
 
 ## 2. Target component model
 
@@ -131,6 +132,10 @@ The scheduler is an actor-like Rust service with one authority over dispatch and
 state. It receives commands and process events through channels, evaluates policy,
 commits changes, and schedules the next tick.
 
+`AppSettings` validates itself, and storage, engine, validation, and scheduler failures
+remain typed internally. Only the Tauri command boundary maps them to stable localized
+error codes. This keeps causes testable without exposing raw engine output to React.
+
 ### 6.1 Dispatch invariants
 
 - A task is dispatchable only from a stable eligible state.
@@ -194,6 +199,11 @@ size estimate, and sends back only the selected validated selector. The selector
 with the task and later becomes a typed `--format` argument. Download plans explicitly pass
 `--progress`, because yt-dlp's final-path printing can otherwise suppress progress output.
 
+In `0.4.0`, discovery is separate from execution. Typed browser-cookie sources and engine
+plans cross the scheduler boundary. The adapter also emits a safe component plan plus
+component-tagged progress; the scheduler aggregates video and audio bytes into one
+monotonic overall progress value and reserves 100% for a verified final file.
+
 ## 8. Process supervisor
 
 Every attempt receives an ownership container before useful work begins:
@@ -246,10 +256,10 @@ Frontend concerns:
 
 ## 11. Observability
 
-Logs are local, structured, bounded, and redacted at ingestion. Correlation fields
-include task ID, attempt ID, run ID, event sequence, engine name/version, and phase.
-They exclude cookie content, authorization values, raw signed URLs, and plaintext
-secret paths.
+Version `0.4.0` writes local structured JSON diagnostics to one 2 MiB current file and
+one rotated file. Correlation fields include task and attempt IDs, engine version, state,
+and stable error code. They exclude cookie content, authorization values, browser-profile
+paths, raw engine lines, media URLs, signed URLs, and output paths.
 
 Metrics remain local in the MVP: queue depth, dispatch latency, active counts,
 throughput, retries, stop latency, and recovery outcomes. Any future telemetry is a
@@ -258,7 +268,8 @@ separate opt-in design decision.
 ## 12. Test architecture
 
 - Pure state-machine property tests for legal transitions and command idempotency.
-- Scheduler tests with fake clock, fake engine, and deterministic bandwidth policy.
+- Scheduler tests with narrow fake engine/process boundaries; fake clock and a
+  deterministic bandwidth policy remain planned.
 - Migration tests from every released schema fixture.
 - Crash tests that terminate the app helper at each transition boundary.
 - Native process-tree tests with a helper spawning children and grandchildren,

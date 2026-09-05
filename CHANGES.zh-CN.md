@@ -4,7 +4,45 @@
 
 ## 尚未发布
 
-暂无变更。
+## 0.4.0 - 2026-09-05
+
+### 新增
+
+- 新增任务级总 progress 模型，合并计划的视频/音频组件大小、已下载 bytes、speed 与 ETA，
+  并在每种语言中显示“视频/音频/合并”当前阶段。
+- Completed 任务新增“打开”。Rust 根据 task ID 解析路径，重新验证它是所选目录内的非空
+  canonical output，再交给操作系统默认应用；webview 不传入 filesystem path。
+- 新增本地 structured JSON diagnostics，包含稳定 task/attempt/error field，当前文件上限
+  2 MiB 并保留一次 rotation，不记录原始 engine line、URL、Cookie 或 path。
+- 新增窄 engine/process-spawner trait 与 scheduler test double。
+
+### 变更
+
+- Rust 内部的 `Result<T, String>` 改为 typed validation/storage/engine/scheduler/input
+  error；稳定本地化字符串只在 Tauri IPC boundary 映射。`AppSettings` 自行验证，
+  browser Cookie 使用 typed allowlist。
+- Binary discovery 与 `yt-dlp` execution 分离，同时保留单一 scheduler 和每个 supervised
+  process tree 的单一 RAII owner。
+- 本地控制与引擎就绪信息合并为 header 中的一行，并使用绿色/红色 indicator；URL、
+  format picker 和加入队列的表单完整保留。
+- 在其余 production release gate 完成前，未签名且未 notarize 的构建会作为 GitHub
+  pre-release 发布。
+
+### 修复
+
+- 单独视频流达到 100% 后开始音频流时，不再看似完成又重新开始。Component progress
+  单调聚合，active work 保持低于 100%，只有验证完成才达到 100%。
+- Completed 任务只有在最终文件仍真实存在时才显示绿色并提供“打开”；文件被删除或为空
+  时，会在下一次 queue refresh 显示 output error。
+
+### 指标
+
+- SQLite schema：版本 5 -> 6，并有经过测试的 in-place `download_stage` migration。
+- 常规 Rust suite：22 -> 26 个测试，另有通过的 opt-in real-engine loopback smoke。
+- Error boundary：从 Rust 全程 string code 变为 5 个 typed error family，仅在 Tauri IPC
+  进行一次稳定 string mapping。
+- Progress model：从一个会被覆盖的 per-component snapshot 变为计划组件的单调 aggregate，
+  每种应用语言包含 4 个本地化 stage label。
 
 ## 0.3.1 - 2026-09-05
 

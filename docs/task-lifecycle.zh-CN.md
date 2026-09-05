@@ -78,13 +78,16 @@ Partial 重用要求 destination/template/source/format/engine fingerprint 兼�
 
 ## 9. Progress 与 checkpoints
 
-UI progress 合并，checkpoint 只在有界间隔和 phase boundary 持久化；
-100% progress 不等于完成。
-`0.3.0` UI 每五秒请求一次 authoritative snapshot。蓝色、绿色和红色进度填充配合
-明确文本状态，分别表示 active、completed 与 failed/interrupted。
-完成还要求配置目录内存在经过验证的非空普通文件。实际大小会持久保存，startup 会用
-同一个已验证文件修复旧 completed 任务的零字节指标。右键任务操作仍投影到同一组经过
-revision 检查的 Start/Stop/Pause/Remove 状态转换；Copy URL 不改变状态。
+UI progress 合并，checkpoint 只在有界间隔和 phase boundary 持久化；单个组件的
+100% progress 不等于完成。`0.4.0` UI 每五秒请求一次 authoritative snapshot。
+`yt-dlp` 的独立视频与音频组件事件会聚合为单调递增的任务总字节数、progress 与 ETA；
+副标题说明当前正在下载视频、音频或合并最终文件。下载与合并期间的 progress 保持在
+100% 以下；只有经过验证的最终文件才会显示 100% 和绿色。
+完成还要求配置目录内存在经过验证的非空普通文件。每次 snapshot 都会重新检查文件，
+只有存在时才显示绿色并启用“打开”。Open 命令只接收任务 ID，由 Rust 解析并验证已记录
+路径，再交给操作系统默认应用；webview 不能提供任意路径。Startup 仍会用同一个验证
+文件修复旧 completed 任务的零字节指标。右键任务操作继续映射到 revision 检查的
+Start/Stop/Pause/Remove 转换；Copy URL 不改变状态。
 
 ## 10. 必须测试的 concurrency races
 

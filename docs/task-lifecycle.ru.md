@@ -80,14 +80,19 @@ Partial reuse требует совместимых destination/template/source/
 
 ## 9. Progress и checkpoints
 
-Progress coalesced для UI, checkpoints —
-на bounded interval и phase boundaries; 100% progress сам по себе не означает complete.
-UI `0.3.0` запрашивает authoritative snapshot каждые пять секунд. Синий, зелёный и
-красный progress дополняет явный текстовый state для active, completed и failed/interrupted.
+Progress coalesced для UI, checkpoints — на bounded interval и phase boundaries; 100%
+отдельного компонента сам по себе не означает complete. UI `0.4.0` запрашивает
+authoritative snapshot каждые пять секунд. События отдельных video/audio-компонентов
+`yt-dlp` агрегируются в один монотонный общий объём, progress и ETA задачи; подзаголовок
+показывает текущий этап: видео, аудио или объединение. Во время загрузки и объединения
+progress ограничен ниже 100%; только проверенный итоговый файл получает 100% и зелёный цвет.
 Для completion дополнительно требуется проверенный непустой обычный файл внутри настроенной
-папки. Фактический размер сохраняется, а startup исправляет старые нулевые метрики completed
-задач по тому же проверенному файлу. Команды правой кнопки остаются projection тех же
-revision-checked переходов Start/Stop/Pause/Remove; Copy URL состояние не меняет.
+папки. Каждый snapshot заново проверяет его наличие перед зелёным состоянием и включением
+кнопки «Открыть». Команда принимает ID задачи, на стороне Rust получает и проверяет
+записанный путь, затем передаёт его приложению ОС по умолчанию; webview не может передать
+произвольный путь. Startup продолжает исправлять старые нулевые метрики completed-задач.
+Команды правой кнопки остаются projection тех же revision-checked переходов
+Start/Stop/Pause/Remove; Copy URL состояние не меняет.
 
 ## 10. Concurrency races для тестирования
 

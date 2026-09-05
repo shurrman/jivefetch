@@ -10,9 +10,9 @@ JiveFetch 是一款本地优先的桌面应用，用于管理合法的媒体下�
 ## 你将获得
 
 - 持久队列、并发下载与全局速度限制。
-- 实时进度、速度、ETA、已下载大小与总大小。
+- 覆盖视频、音频与合并阶段的真实总进度，并显示当前阶段、速度、ETA、已下载大小与总大小。
 - 从来源实际提供的视频格式中选择；默认使用最高质量。
-- 启动、暂停、停止、重试、移除与复制 URL 操作。
+- 启动、暂停、停止、重试、移除、复制 URL，以及使用系统默认应用打开已验证完成文件。
 - 可选使用所选浏览器的 Cookie 进行认证。
 - 可配置下载目录，以及跟随系统、浅色或深色主题。
 - 英语、俄语与简体中文界面；首次启动默认使用英语。
@@ -26,5 +26,5 @@ JiveFetch 是一款本地优先的桌面应用，用于管理合法的媒体下�
 - Linux：64 位（`x86_64`/`amd64`）AppImage 或 DEB。
 
 - [macOS、Windows 与 Linux 安装指南](INSTALL.zh-CN.md)
-- [最新版本与下载文件](https://github.com/shurrman/jivefetch/releases/latest)
+- [版本与下载文件](https://github.com/shurrman/jivefetch/releases)
 - [当前未签名 macOS 构建的额外步骤](docs/macos-installation.zh-CN.md)

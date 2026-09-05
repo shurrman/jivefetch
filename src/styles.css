@@ -145,6 +145,29 @@ input:disabled {
   font-size: 12px;
 }
 
+.brand-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.engine-readiness-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+}
+
+.engine-readiness-dot.ready {
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent);
+}
+
+.engine-readiness-dot.missing {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
 .brand-mark {
   width: 44px;
   height: 44px;
@@ -264,11 +287,7 @@ input:disabled {
 }
 
 .hero {
-  display: grid;
-  grid-template-columns: 0.9fr 1.4fr;
-  gap: 54px;
-  align-items: end;
-  padding: 42px 46px;
+  padding: 26px 30px;
   border: 1px solid var(--border);
   border-radius: 26px;
   background: var(--surface);
@@ -630,6 +649,12 @@ input:disabled {
   font-size: 10px;
 }
 
+.task-stage {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .task-output,
 .task-error,
 .task-url strong,
@@ -740,10 +765,6 @@ input:disabled {
 @media (max-width: 840px) {
   body {
     min-width: 680px;
-  }
-
-  .hero {
-    grid-template-columns: 1fr;
   }
 
   .format-picker {

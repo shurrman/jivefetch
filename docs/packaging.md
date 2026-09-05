@@ -138,11 +138,11 @@ still requires the exact-binary review in [Licensing](licensing.md).
 
 ## 9. Release gates
 
-The newest successfully published release is marked as GitHub `Latest`, including
-while production signing is not yet in place. `Latest` identifies release ordering,
-not certification or production readiness. Unsigned/unnotarized assets must be called
-out explicitly and must not claim production support. A fully supported production
-release must satisfy every gate below.
+Until application signing, notarization, managed-sidecar licensing, and the remaining
+release gates are complete, successfully built versions are published as GitHub
+pre-releases. Unsigned/unnotarized assets must be called out explicitly and must not
+claim production support. A fully supported production release must satisfy every gate
+below.
 
 GitHub release descriptions embed English, Russian, and Simplified Chinese as in-page
 sections. Their language navigation uses absolute tag-page URLs plus section anchors,

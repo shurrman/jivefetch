@@ -11,9 +11,10 @@ JiveFetch 是长时间运行且可能失败的外部进程之上的桌面 UI。�
 管理 scheduler、恢复、探测、带宽和命令；Infrastructure 包含 SQLite、文件系统、
 keychain、时钟和平台进程；Adapters 提供 Tauri IPC/events 与 engine 集成。
 
-Domain/Application 必须能脱离 webview 和真实下载引擎测试。`0.2.0` 在 `src-tauri`
-内保留明确的 `model`、`storage`、`scheduler`、`engine` 和 `process_supervisor` 模块；
-后续 crate 拆分将遵循这些已测试接口，而不是创建空边界。
+Domain/Application 必须能脱离 webview 和真实下载引擎测试。`0.4.0` 保留单一 scheduler
+权威，同时提取 typed error/diagnostics、binary discovery、`YtDlpExecutor`，并加入供
+scheduler test double 使用的窄 engine/process trait。后续 crate 拆分将沿这些已测试
+seam 进行，不创建空边界，也不拆分 live process tree 的所有权。
 
 ## 2. 目标组件模型
 
@@ -84,6 +85,10 @@ Downloads 下的 `JiveFetch` 目录。
 Scheduler 是 dispatch/task state 的唯一权威，通过 channel 接收命令和进程事件，
 应用 policy、提交变化并安排下一次 tick。
 
+`AppSettings` 自行验证；storage、engine、validation 与 scheduler error 在 Rust 内部
+保持类型化。只有 Tauri boundary 将它们映射为稳定的本地化错误代码，不向 React 暴露
+原始引擎输出。
+
 ### 6.1 Dispatch 不变量
 
 - 任务只能从稳定且允许的状态 dispatch。
@@ -126,6 +131,10 @@ allowlist、工作目录、预期 artifacts 和 capabilities，不含 shell synt
 持久保存，随后成为类型化 `--format` 参数。Download plan 会显式传入 `--progress`，
 因为输出最终路径可能触发 yt-dlp quiet behavior 并抑制进度输出。
 
+`0.4.0` 将 discovery 与 execution 分开，并对 browser-cookie source 和 engine plan
+进行类型化。Adapter 发送安全的 component plan 与带组件 ID 的 progress；scheduler
+把视频/音频字节聚合为单调递增的总进度，并只让验证后的最终文件达到 100%。
+
 ## 8. 进程监管
 
 有效工作前，macOS/Linux attempt 创建新 session/process group；Windows 使用
@@ -159,9 +168,10 @@ React 保存 intake、queue、task details 和 settings 的 normalized read mode
 
 ## 11. 可观测性
 
-日志只保存在本地，结构化、有界，并在 ingestion 时脱敏。关联字段含 task ID、
-attempt ID、run ID、event sequence、engine/version 和 phase；排除 cookie、authorization、
-原始 signed URL 和明文 secret path。
+`0.4.0` 的 structured JSON diagnostics 只保存在本地：当前文件最多 2 MiB，另保留一个
+rotated 文件。关联字段含 task/attempt ID、engine version、state 和稳定 error code；
+排除 Cookie、authorization、browser-profile path、原始 engine line、media/signed URL
+和 output path。
 
 MVP metrics 也只在本地：queue depth、dispatch latency、active count、throughput、
 retry、stop latency 和 recovery outcome。未来 telemetry 必须另行设计并 opt-in。
@@ -169,7 +179,8 @@ retry、stop latency 和 recovery outcome。未来 telemetry 必须另行设计�
 ## 12. 测试架构
 
 - 状态机合法转换和 command idempotency 的 property tests。
-- 使用 fake clock/engine 和确定性 bandwidth policy 的 scheduler tests。
+- 使用窄 fake engine/process boundary 的 scheduler tests；fake clock 和确定性
+  bandwidth policy 仍为后续计划。
 - 每个已发布 schema fixture 的 migration tests。
 - 每个 transition boundary 的 crash tests。
 - 包含 children/grandchildren 与 unrelated same-name process 的 native helper。

@@ -50,12 +50,17 @@ Cookies, passwords, tokens, auth headers, signed query values и decrypted temp 
 - Canonical destination, sanitized template, запрет traversal/device names/ADS/control
   chars и symlink escape; explicit collision policy.
 - Remove-with-files удаляет только tracked canonical artifacts, не directory/glob.
+- «Открыть» принимает из webview только task ID: Rust заново получает сохранённый путь,
+  canonicalize его внутри выбранной папки, требует непустой обычный файл и только затем
+  передаёт его приложению ОС по умолчанию.
 
 ## 7. Граница Tauri/webview
 
 Минимальные capabilities per window, Rust validation size/scheme, packaged local UI,
 strict CSP без remote scripts, constrained thumbnail path, запрет privileged navigation,
 external links через OS confirmation, никаких secrets в React/storage/clipboard/logs.
+Structured diagnostics ограничены одним текущим файлом 2 MiB и одной rotation; raw engine
+lines, media URLs, browser profile paths, cookies и output paths в них не записываются.
 
 ## 8. Обновления engine и приложения
 

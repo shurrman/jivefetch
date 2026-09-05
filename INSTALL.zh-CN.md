@@ -89,7 +89,7 @@ deno --version
 
 ## 3. 下载并验证 JiveFetch
 
-打开 [JiveFetch 最新版本](https://github.com/shurrman/jivefetch/releases/latest)，在
+打开 [JiveFetch 版本页面](https://github.com/shurrman/jivefetch/releases)，在
 **Assets** 中下载适用于你的操作系统的软件包，以及对应的 `SHA256SUMS-*.txt` 文件。
 
 - macOS：在下载目录运行 `shasum -a 256 -c SHA256SUMS-macOS-ARM64.txt`。

@@ -4,7 +4,47 @@
 
 ## Не выпущено
 
-Изменений пока нет.
+## 0.4.0 - 2026-09-05
+
+### Добавлено
+
+- Единая модель общего progress задачи суммирует плановые размеры video/audio-компонентов,
+  загруженные bytes, speed и ETA; текущий этап «Видео/Аудио/Объединение» локализован.
+- Для completed-задач добавлено действие «Открыть». Rust получает путь по task ID, заново
+  проверяет непустой canonical output внутри настроенной папки и открывает его приложением
+  ОС по умолчанию; webview не передаёт filesystem path.
+- Добавлены structured local JSON diagnostics со стабильными task/attempt/error fields,
+  лимитом 2 MiB и одной rotation без raw engine lines, URL, cookies и paths.
+- Добавлены узкие engine/process-spawner traits и scheduler test doubles.
+
+### Изменено
+
+- Внутренние `Result<T, String>` заменены typed validation/storage/engine/scheduler/input
+  errors; стабильные локализованные строки остаются только на Tauri IPC boundary.
+  `AppSettings` сам проверяет себя, browser cookies представлены typed allowlist.
+- Discovery бинарников отделён от `yt-dlp` execution при сохранении одного scheduler и
+  одного RAII owner для каждого supervised process tree.
+- Сообщение о локальном контроле и готовности движков перенесено одной компактной строкой
+  в header с зелёным/красным indicator; URL, format picker и добавление в очередь сохранены.
+- Unsigned и unnotarized сборки публикуются как GitHub pre-release до прохождения
+  остальных production release gates.
+
+### Исправлено
+
+- Событие 100% отдельного видеопотока перед аудиопотоком больше не выглядит как завершение
+  и повторный старт. Component progress монотонно агрегируется, active work остаётся ниже
+  100%, и только проверенное завершение достигает 100%.
+- Completed-задача зелёная и предлагает «Открыть» только пока итоговый файл реально
+  существует; удалённый или пустой файл становится output error при следующем refresh.
+
+### Метрики
+
+- SQLite schema: версия 5 -> 6 с проверенной in-place migration `download_stage`.
+- Обычный Rust suite: 22 -> 26 tests плюс проходящий opt-in real-engine loopback smoke.
+- Error boundary: string codes по всему Rust -> 5 typed error families и одно string
+  mapping на Tauri IPC.
+- Progress model: один перезаписываемый per-component snapshot -> один монотонный aggregate
+  по плановым компонентам и 4 локализованных stage labels на каждом языке приложения.
 
 ## 0.3.1 - 2026-09-05
 

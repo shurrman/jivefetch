@@ -11,10 +11,12 @@ Deno for current YouTube support.
 ## What you get
 
 - Persistent queue with concurrent downloads and a global speed limit.
-- Live progress, speed, ETA, downloaded size, and total size.
+- Truthful overall progress across video, audio, and merging, with the current stage,
+  speed, ETA, downloaded size, and total size.
 - Selection from the video formats actually available at the source; maximum quality
   is the default.
-- Start, Pause, Stop, Retry, Remove, and Copy URL actions.
+- Start, Pause, Stop, Retry, Remove, Copy URL, and open a verified completed file in
+  its default application.
 - Optional authentication with cookies from a selected browser.
 - Configurable download folder and system, light, or dark theme.
 - English, Russian, and Simplified Chinese interface; English is the first-run default.
@@ -28,5 +30,5 @@ Install `yt-dlp`, FFmpeg, and Deno, then download JiveFetch for your platform:
 - Linux: 64-bit (`x86_64`/`amd64`) AppImage or DEB.
 
 - [Installation guide for macOS, Windows, and Linux](INSTALL.md)
-- [Latest release and downloads](https://github.com/shurrman/jivefetch/releases/latest)
+- [Releases and downloads](https://github.com/shurrman/jivefetch/releases)
 - [Additional steps for the current unsigned macOS build](docs/macos-installation.md)

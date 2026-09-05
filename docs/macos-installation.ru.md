@@ -5,8 +5,8 @@
 ## Область применения
 
 Текущие preview-релизы JiveFetch собраны для Apple Silicon (`arm64`), но пока не
-подписаны сертификатом Apple Developer ID и не прошли notarization. GitHub `Latest`
-означает самый новый опубликованный выпуск, а не проверку приложения компанией Apple.
+подписаны сертификатом Apple Developer ID и не прошли notarization. Они помечены на
+GitHub как pre-release и не проверены компанией Apple.
 
 До появления подписи и notarization Gatekeeper может сообщать, что приложение
 повреждено. Используйте следующую процедуру только для DMG JiveFetch, скачанного из

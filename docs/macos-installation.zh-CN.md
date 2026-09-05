@@ -5,8 +5,8 @@
 ## 适用范围
 
 当前 JiveFetch 预览版面向 Apple Silicon (`arm64`) 构建，但尚未使用 Apple Developer
-ID 证书签名，也未经过 notarization。GitHub `Latest` 只表示最新发布的版本，不表示
-Apple 已经验证该应用。
+ID 证书签名，也未经过 notarization。它们在 GitHub 上标记为 pre-release，且未经
+Apple 验证。
 
 在签名和 notarization 完成前，Gatekeeper 可能提示应用已损坏。仅对从官方仓库下载的
 JiveFetch DMG 使用以下步骤。

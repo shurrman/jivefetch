@@ -92,7 +92,7 @@ deno --version
 
 ## 3. Скачайте и проверьте JiveFetch
 
-Откройте [последний релиз JiveFetch](https://github.com/shurrman/jivefetch/releases/latest),
+Откройте [релизы JiveFetch](https://github.com/shurrman/jivefetch/releases),
 а затем из блока **Assets** скачайте пакет для своей ОС и соответствующий файл
 `SHA256SUMS-*.txt`.
 

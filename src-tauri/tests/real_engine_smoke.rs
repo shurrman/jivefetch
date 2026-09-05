@@ -11,7 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use jivefetch_lib::{engine::EngineRegistry, scheduler::SchedulerRuntime};
+use jivefetch_lib::{engine::BinaryDiscovery, scheduler::SchedulerRuntime};
 
 struct MediaServer {
     address: std::net::SocketAddr,
@@ -71,7 +71,7 @@ fn downloads_local_fixture_through_the_real_scheduler() {
     let directory = tempfile::tempdir().unwrap();
     let output = directory.path().join("output");
     fs::create_dir_all(&output).unwrap();
-    let engines = EngineRegistry::discover(&output);
+    let engines = BinaryDiscovery::new(output.clone()).discover();
     let ffmpeg = engines
         .ffmpeg
         .expect("ffmpeg is required for this smoke test");

@@ -116,6 +116,10 @@ Remove-with-files deletes only tracked canonical files. It never recursively del
 the destination root, follows an untrusted symlink outside the root, or expands an
 unresolved glob.
 
+Opening a completed download follows the same boundary: the webview sends only a task
+ID, Rust reloads the recorded output, canonicalizes it inside the configured destination,
+requires a non-empty regular file, and only then asks the OS to use its default app.
+
 ## 7. Tauri and webview boundary
 
 - Define a narrow Tauri capability set per window.
@@ -127,6 +131,8 @@ unresolved glob.
 - Disable navigation to arbitrary remote pages inside the privileged webview; open
   approved external links through the OS after confirmation.
 - Keep secrets out of React state, browser storage, clipboard, and frontend logs.
+- Keep local structured diagnostics bounded to one 2 MiB file plus one rotation; never
+  write raw engine lines, media URLs, browser profile paths, cookies, or output paths.
 
 ## 8. Engine and application updates
 

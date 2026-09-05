@@ -25,7 +25,9 @@ export interface QueueTask {
   totalBytes: number | null;
   speed: number | null;
   eta: number | null;
+  downloadStage: string | null;
   outputPath: string | null;
+  outputAvailable: boolean;
   errorCode: string | null;
   attemptCount: number;
 }

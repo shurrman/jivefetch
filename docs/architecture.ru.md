@@ -16,9 +16,10 @@ JiveFetch — desktop UI над долгоживущими внешними пр
 - **Adapters:** Tauri IPC/events и конкретные интеграции `yt-dlp`/`ffmpeg`/`aria2`.
 
 Domain и Application должны компилироваться и тестироваться без webview и реальных
-download engines. В `0.2.0` модули `model`, `storage`, `scheduler`, `engine` и
-`process_supervisor` остаются в `src-tauri`; последующий crate split пойдёт по уже
-проверенным интерфейсам, а не создаст пустые границы.
+download engines. В `0.4.0` сохраняется один scheduler-authority, но выделены typed
+error/diagnostics, discovery бинарников, `YtDlpExecutor` и узкие engine/process traits
+для test doubles. Последующий crate split пойдёт по этим проверенным seams без пустых
+границ и без разделения владения живым process tree.
 
 ## 2. Целевая модель компонентов
 
@@ -94,6 +95,10 @@ Scheduler — actor-like Rust service и единственный владеле
 commands и process events через channels, применяет policy, фиксирует изменения и
 планирует следующий tick.
 
+`AppSettings` проверяет себя сам; storage, engine, validation и scheduler errors остаются
+типизированными внутри Rust. Только Tauri boundary превращает их в стабильные
+локализованные коды, не отдавая React сырой вывод движка.
+
 ### 6.1 Инварианты dispatch
 
 - Задача запускается только из стабильного разрешённого state.
@@ -150,6 +155,11 @@ boundary и browser-cookie selector, что и загрузка. React полу�
 задачей и становится типизированным аргументом `--format`. Download plan явно передаёт
 `--progress`, потому что вывод финального пути может иначе включить quiet behavior yt-dlp.
 
+В `0.4.0` discovery отделён от execution, а browser-cookie source и engine plan
+типизированы. Adapter выдаёт безопасный component plan и progress с ID компонента;
+scheduler агрегирует video/audio bytes в один монотонный общий progress и оставляет 100%
+только для проверенного итогового файла.
+
 ## 8. Process supervisor
 
 До полезной работы attempt получает ownership container: на macOS/Linux — новая
@@ -187,9 +197,10 @@ durable revision.
 
 ## 11. Наблюдаемость
 
-Local logs структурированы, ограничены и redacted при ingestion. Correlation fields: task
-ID, attempt ID, run ID, event sequence, engine/version и phase. Cookie content,
-authorization, raw signed URLs и plaintext secret paths исключены.
+В `0.4.0` structured JSON diagnostics хранятся локально в текущем файле до 2 MiB и одном
+rotated-файле. Correlation fields включают task/attempt ID, engine version, state и
+стабильный error code. Cookie, authorization, browser-profile paths, raw engine lines,
+media/signed URLs и output paths исключены.
 
 MVP metrics остаются локальными: queue depth, dispatch latency, active counts, throughput,
 retries, stop latency и recovery outcomes. Будущая telemetry требует отдельного opt-in
@@ -198,7 +209,8 @@ retries, stop latency и recovery outcomes. Будущая telemetry требу�
 ## 12. Архитектура тестов
 
 - Property tests state machine и command idempotency.
-- Scheduler tests с fake clock/engine и deterministic bandwidth policy.
+- Scheduler tests с узкими fake engine/process boundaries; fake clock и deterministic
+  bandwidth policy остаются планом.
 - Migration fixtures от каждой released schema.
 - Crash tests на каждой transition boundary.
 - Native process-tree helper с children/grandchildren и unrelated same-name process.

@@ -31,6 +31,26 @@ pub struct SupervisedProcess {
     output: Receiver<ProcessLine>,
 }
 
+pub trait OwnedProcess: Send {
+    fn id(&self) -> u32;
+    fn try_wait(&mut self) -> io::Result<Option<ExitStatus>>;
+    fn drain_output(&self) -> Vec<ProcessLine>;
+    fn drain_output_until_closed(&self, timeout: Duration) -> Vec<ProcessLine>;
+    fn terminate_owned_tree(&mut self, grace: Duration) -> io::Result<ExitStatus>;
+}
+
+pub trait ProcessSpawner: Send + Sync {
+    fn spawn(
+        &self,
+        executable: &Path,
+        args: &[String],
+        working_directory: &Path,
+    ) -> io::Result<Box<dyn OwnedProcess>>;
+}
+
+#[derive(Debug, Default)]
+pub struct SystemProcessSpawner;
+
 impl SupervisedProcess {
     pub fn spawn(executable: &Path, args: &[String], working_directory: &Path) -> io::Result<Self> {
         Self::spawn_with_output_limits(
@@ -152,6 +172,40 @@ impl SupervisedProcess {
             Err(error) if error.kind() == io::ErrorKind::InvalidInput => Ok(()),
             Err(error) => Err(error),
         }
+    }
+}
+
+impl OwnedProcess for SupervisedProcess {
+    fn id(&self) -> u32 {
+        self.id()
+    }
+
+    fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
+        self.try_wait()
+    }
+
+    fn drain_output(&self) -> Vec<ProcessLine> {
+        self.drain_output().collect()
+    }
+
+    fn drain_output_until_closed(&self, timeout: Duration) -> Vec<ProcessLine> {
+        self.drain_output_until_closed(timeout)
+    }
+
+    fn terminate_owned_tree(&mut self, grace: Duration) -> io::Result<ExitStatus> {
+        self.terminate_owned_tree(grace)
+    }
+}
+
+impl ProcessSpawner for SystemProcessSpawner {
+    fn spawn(
+        &self,
+        executable: &Path,
+        args: &[String],
+        working_directory: &Path,
+    ) -> io::Result<Box<dyn OwnedProcess>> {
+        SupervisedProcess::spawn(executable, args, working_directory)
+            .map(|process| Box::new(process) as Box<dyn OwnedProcess>)
     }
 }
 

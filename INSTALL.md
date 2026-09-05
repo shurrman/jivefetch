@@ -92,7 +92,7 @@ installation and restart both the terminal and JiveFetch.
 
 ## 3. Download and verify JiveFetch
 
-Open the [latest JiveFetch release](https://github.com/shurrman/jivefetch/releases/latest)
+Open [JiveFetch releases](https://github.com/shurrman/jivefetch/releases)
 and download the package for your OS plus its matching `SHA256SUMS-*.txt` file from
 **Assets**.
 

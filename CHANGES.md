@@ -6,7 +6,47 @@ This file records validated project-level changes and before/after metrics.
 
 ## Unreleased
 
-No changes yet.
+## 0.4.0 - 2026-09-05
+
+### Added
+
+- Added one task-wide progress model that combines planned video and audio component
+  sizes, downloaded bytes, speed, and ETA, plus localized Video/Audio/Merging stage text.
+- Added an Open action for completed tasks. Rust resolves the task ID, revalidates a
+  non-empty canonical output inside the configured folder, and opens it with the OS
+  default application; the webview never supplies a filesystem path.
+- Added structured local JSON diagnostics with stable task/attempt/error fields, a 2 MiB
+  bound, and one rotation while excluding raw engine lines, URLs, cookies, and paths.
+- Added narrow engine and process-spawner traits with scheduler test doubles.
+
+### Changed
+
+- Replaced internal `Result<T, String>` flows with typed validation, storage, engine,
+  scheduler, and input errors; stable localized strings now exist only at the Tauri IPC
+  boundary. `AppSettings` owns its validation and browser cookies use a typed allowlist.
+- Separated binary discovery from `yt-dlp` execution while preserving one scheduler and
+  one RAII owner for each supervised process tree.
+- Moved the local-control and engine-ready message into one compact header line with a
+  green/red indicator; the URL, format picker, and Add to queue form remain in the card.
+- Publish unsigned and unnotarized builds as GitHub pre-releases until the remaining
+  production release gates are complete.
+
+### Fixed
+
+- A 100% video-only event followed by an audio-only download no longer makes a task look
+  finished and then restarted. Component progress is aggregated monotonically, active
+  work stays below 100%, and only verified completion reaches 100%.
+- Completed tasks are green and offer Open only while their verified final file still
+  exists; a removed or empty file is shown as an output error on the next queue refresh.
+
+### Metrics
+
+- SQLite schema: version 5 to 6 with a tested in-place `download_stage` migration.
+- Regular Rust suite: 22 to 26 tests, plus the passing opt-in real-engine loopback smoke.
+- Internal error boundary: string codes throughout Rust to 5 typed error families and one
+  stable string mapping at Tauri IPC.
+- Progress model: one replaceable per-component snapshot to one monotonic aggregate across
+  planned components, with 4 localized stage labels in each application language.
 
 ## 0.3.1 - 2026-09-05
 

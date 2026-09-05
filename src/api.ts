@@ -40,3 +40,7 @@ export function removeTask(task: QueueTask): Promise<void> {
     expectedRevision: task.revision,
   });
 }
+
+export function openOutput(taskId: string): Promise<void> {
+  return invoke<void>("open_output", { taskId });
+}

@@ -49,12 +49,16 @@ browser profile、raw args/env 或媒体文件。
 - Canonical destination 与 sanitized template；拒绝 traversal、device name、ADS、control
   character 和 symlink escape；collision policy 必须明确。
 - Remove-with-files 只能删除 tracked canonical artifact，不能删除目录或展开 glob。
+- “打开”只从 webview 接收 task ID；Rust 重新读取记录路径，在所选目录内 canonicalize，
+  要求它是非空普通文件，然后才交给操作系统默认应用。
 
 ## 7. Tauri/webview 边界
 
 每 window 最小 capability；Rust 校验 payload 大小和 scheme；只加载 packaged local UI；
 严格 CSP 禁止 remote script；thumbnail 通道受限；remote page 无 privileged IPC；secret 不
 进入 React/storage/clipboard/log。
+Structured diagnostics 只保留一个最大 2 MiB 的当前文件和一个 rotated 文件；不写入
+原始 engine line、media URL、browser profile path、Cookie 或 output path。
 
 ## 8. Engine 与应用更新
 

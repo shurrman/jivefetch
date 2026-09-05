@@ -70,11 +70,10 @@ Pin toolchains/lockfiles/actions SHA,
 
 ## 9. Release gates
 
-Самый новый успешно опубликованный релиз назначается GitHub `Latest`, в том числе до
-появления production signing. `Latest` обозначает порядок релизов, а не сертификацию или
-production readiness. Для unsigned/unnotarized artifacts это явно указывается без
-заявления production support. Полноценный поддерживаемый production-релиз обязан пройти
-все gate ниже.
+До готовности application signing, notarization, лицензирования managed sidecars и
+остальных release gates успешно собранные версии публикуются как GitHub pre-release.
+Unsigned/unnotarized artifacts явно обозначаются без заявления production support.
+Полноценный поддерживаемый production-релиз обязан пройти все gate ниже.
 
 Описание GitHub release содержит English, Русский и 简体中文 как секции одной страницы.
 Переключатель языков использует абсолютные URL страницы конкретного tag с anchors, а не

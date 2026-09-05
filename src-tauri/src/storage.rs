@@ -5,9 +5,12 @@ use std::{
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::model::{AppSettings, AttemptReservation, ControlIntent, QueueTask};
+use crate::{
+    error::{StorageError, UserErrorCode},
+    model::{AppSettings, AttemptReservation, ControlIntent, QueueTask, DEFAULT_CONCURRENCY},
+};
 
-const SCHEMA_VERSION: i64 = 5;
+const SCHEMA_VERSION: i64 = 6;
 
 pub struct ActionOutcome {
     pub task: QueueTask,
@@ -15,71 +18,60 @@ pub struct ActionOutcome {
     pub should_dispatch: bool,
 }
 
-pub fn unix_timestamp() -> Result<i64, String> {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
-        .map_err(|_| "clockError".to_string())
+pub struct ProgressUpdate<'a> {
+    pub progress: f64,
+    pub downloaded_bytes: i64,
+    pub total_bytes: Option<i64>,
+    pub speed: Option<f64>,
+    pub eta: Option<i64>,
+    pub download_stage: &'a str,
 }
 
-pub fn open_database(path: &Path) -> Result<Connection, String> {
-    let connection = Connection::open(path).map_err(|_| "storageError".to_string())?;
-    connection
-        .pragma_update(None, "journal_mode", "WAL")
-        .map_err(|_| "storageError".to_string())?;
-    connection
-        .pragma_update(None, "foreign_keys", "ON")
-        .map_err(|_| "storageError".to_string())?;
-    connection
-        .busy_timeout(Duration::from_secs(5))
-        .map_err(|_| "storageError".to_string())?;
+pub fn unix_timestamp() -> Result<i64, StorageError> {
+    Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64)
+}
+
+pub fn open_database(path: &Path) -> Result<Connection, StorageError> {
+    let connection = Connection::open(path)?;
+    connection.pragma_update(None, "journal_mode", "WAL")?;
+    connection.pragma_update(None, "foreign_keys", "ON")?;
+    connection.busy_timeout(Duration::from_secs(5))?;
     migrate(&connection)?;
     Ok(connection)
 }
 
-pub fn recover_interrupted(connection: &Connection) -> Result<usize, String> {
+pub fn recover_interrupted(connection: &Connection) -> Result<usize, StorageError> {
     let timestamp = unix_timestamp()?;
-    let changed = connection
-        .execute(
-            "UPDATE tasks
+    let changed = connection.execute(
+        "UPDATE tasks
              SET state = 'interrupted', error_code = 'interruptedAfterRestart',
                  revision = revision + 1, updated_at = ?1
              WHERE state IN ('starting', 'downloading', 'postprocessing', 'pausing', 'stopping')",
-            [timestamp],
-        )
-        .map_err(|_| "storageError".to_string())?;
-    connection
-        .execute(
-            "UPDATE attempts
+        [timestamp],
+    )?;
+    connection.execute(
+        "UPDATE attempts
              SET finished_at = ?1, result = 'interrupted'
              WHERE finished_at IS NULL",
-            [timestamp],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        [timestamp],
+    )?;
     Ok(changed)
 }
 
 pub fn prepare_shutdown(
     connection: &mut Connection,
-) -> Result<Vec<(String, ControlIntent)>, String> {
+) -> Result<Vec<(String, ControlIntent)>, StorageError> {
     let timestamp = unix_timestamp()?;
-    let transaction = connection
-        .transaction()
-        .map_err(|_| "storageError".to_string())?;
-    let mut statement = transaction
-        .prepare(
-            "SELECT id, state FROM tasks
+    let transaction = connection.transaction()?;
+    let mut statement = transaction.prepare(
+        "SELECT id, state FROM tasks
              WHERE state IN ('starting', 'downloading', 'postprocessing', 'pausing', 'stopping')",
-        )
-        .map_err(|_| "storageError".to_string())?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })
-        .map_err(|_| "storageError".to_string())?;
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
     let controls = rows
-        .collect::<rusqlite::Result<Vec<_>>>()
-        .map_err(|_| "storageError".to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()?
         .into_iter()
         .map(|(id, state)| {
             let intent = if state == "stopping" {
@@ -92,17 +84,13 @@ pub fn prepare_shutdown(
         .collect::<Vec<_>>();
     drop(statement);
 
-    transaction
-        .execute(
-            "UPDATE tasks
+    transaction.execute(
+        "UPDATE tasks
              SET state = 'pausing', revision = revision + 1, updated_at = ?1
              WHERE state IN ('starting', 'downloading', 'postprocessing')",
-            [timestamp],
-        )
-        .map_err(|_| "storageError".to_string())?;
-    transaction
-        .commit()
-        .map_err(|_| "storageError".to_string())?;
+        [timestamp],
+    )?;
+    transaction.commit()?;
     Ok(controls)
 }
 
@@ -110,104 +98,91 @@ pub fn settle_orphaned_control(
     connection: &mut Connection,
     task_id: &str,
     intent: ControlIntent,
-) -> Result<QueueTask, String> {
+) -> Result<QueueTask, StorageError> {
     let timestamp = unix_timestamp()?;
-    let transaction = connection
-        .transaction()
-        .map_err(|_| "storageError".to_string())?;
-    let changed = transaction
-        .execute(
-            "UPDATE tasks
+    let transaction = connection.transaction()?;
+    let changed = transaction.execute(
+        "UPDATE tasks
              SET state = ?1, speed = NULL, eta = NULL, error_code = NULL,
                  revision = revision + 1, updated_at = ?2
              WHERE id = ?3 AND state = ?4",
-            params![
-                intent.stable_state(),
-                timestamp,
-                task_id,
-                intent.transient_state()
-            ],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![
+            intent.stable_state(),
+            timestamp,
+            task_id,
+            intent.transient_state()
+        ],
+    )?;
     if changed != 1 {
-        return Err("revisionConflict".to_string());
+        return Err(StorageError::RevisionConflict);
     }
-    transaction
-        .execute(
-            "UPDATE attempts SET finished_at = ?1, result = ?2, error_code = NULL
+    transaction.execute(
+        "UPDATE attempts SET finished_at = ?1, result = ?2, error_code = NULL
              WHERE task_id = ?3 AND finished_at IS NULL",
-            params![timestamp, intent.stable_state(), task_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![timestamp, intent.stable_state(), task_id],
+    )?;
     let task = load_task(&transaction, task_id)?;
-    transaction
-        .commit()
-        .map_err(|_| "storageError".to_string())?;
+    transaction.commit()?;
     Ok(task)
 }
 
-pub fn list_tasks(connection: &Connection) -> Result<Vec<QueueTask>, String> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, url, state, revision, created_at, updated_at, progress,
+pub fn list_tasks(connection: &Connection) -> Result<Vec<QueueTask>, StorageError> {
+    let mut statement = connection.prepare(
+        "SELECT id, url, state, revision, created_at, updated_at, progress,
                     downloaded_bytes, total_bytes, speed, eta, output_path,
-                    error_code, attempt_count
+                    error_code, attempt_count, download_stage
              FROM tasks ORDER BY created_at DESC, id DESC",
-        )
-        .map_err(|_| "storageError".to_string())?;
-    let rows = statement
-        .query_map([], row_to_task)
-        .map_err(|_| "storageError".to_string())?;
-    rows.collect::<rusqlite::Result<Vec<_>>>()
-        .map_err(|_| "storageError".to_string())
+    )?;
+    let rows = statement.query_map([], row_to_task)?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 pub fn load_settings(
     connection: &Connection,
     default_output_directory: &Path,
-) -> Result<AppSettings, String> {
+) -> Result<AppSettings, StorageError> {
     let default_output = default_output_directory.to_string_lossy().into_owned();
-    connection
-        .execute(
-            "INSERT OR IGNORE INTO app_settings
+    connection.execute(
+        "INSERT OR IGNORE INTO app_settings
              (id, concurrency, speed_limit_bytes_per_second, browser_for_cookies, output_directory)
-             VALUES (1, 2, NULL, NULL, ?1)",
-            [&default_output],
-        )
-        .map_err(|_| "storageError".to_string())?;
-    connection
-        .query_row(
-            "SELECT concurrency, speed_limit_bytes_per_second, browser_for_cookies, output_directory
+             VALUES (1, ?1, NULL, NULL, ?2)",
+        rusqlite::params![i64::try_from(DEFAULT_CONCURRENCY).unwrap(), default_output],
+    )?;
+    let settings = connection.query_row(
+        "SELECT concurrency, speed_limit_bytes_per_second, browser_for_cookies, output_directory
              FROM app_settings WHERE id = 1",
-            [],
-            |row| {
-                let concurrency = row.get::<_, i64>(0)?;
-                let speed_limit = row.get::<_, Option<i64>>(1)?;
-                Ok(AppSettings {
-                    concurrency: usize::try_from(concurrency).unwrap_or_default(),
-                    speed_limit_bytes_per_second: speed_limit
-                        .and_then(|value| u64::try_from(value).ok()),
-                    browser_for_cookies: row.get(2)?,
-                    output_directory: row.get(3)?,
-                })
-            },
-        )
-        .map_err(|_| "storageError".to_string())
+        [],
+        |row| {
+            let concurrency = row.get::<_, i64>(0)?;
+            let speed_limit = row.get::<_, Option<i64>>(1)?;
+            Ok(AppSettings {
+                concurrency: usize::try_from(concurrency).unwrap_or_default(),
+                speed_limit_bytes_per_second: speed_limit
+                    .and_then(|value| u64::try_from(value).ok()),
+                browser_for_cookies: row.get(2)?,
+                output_directory: row.get(3)?,
+            })
+        },
+    )?;
+    settings.validate()?;
+    Ok(settings)
 }
 
-pub fn save_settings(connection: &mut Connection, settings: &AppSettings) -> Result<(), String> {
-    let concurrency = i64::try_from(settings.concurrency).map_err(|_| "invalidConcurrency")?;
+pub fn save_settings(
+    connection: &mut Connection,
+    settings: &AppSettings,
+) -> Result<(), StorageError> {
+    settings.validate()?;
+    let concurrency = i64::try_from(settings.concurrency)
+        .map_err(|_| StorageError::Validation(crate::error::ValidationError::InvalidConcurrency))?;
     let speed_limit = settings
         .speed_limit_bytes_per_second
         .map(i64::try_from)
         .transpose()
-        .map_err(|_| "invalidSpeedLimit")?;
-    let transaction = connection
-        .transaction()
-        .map_err(|_| "storageError".to_string())?;
-    transaction
-        .execute(
-            "INSERT INTO app_settings
+        .map_err(|_| StorageError::Validation(crate::error::ValidationError::InvalidSpeedLimit))?;
+    let transaction = connection.transaction()?;
+    transaction.execute(
+        "INSERT INTO app_settings
              (id, concurrency, speed_limit_bytes_per_second, browser_for_cookies, output_directory)
              VALUES (1, ?1, ?2, ?3, ?4)
              ON CONFLICT(id) DO UPDATE SET
@@ -215,33 +190,32 @@ pub fn save_settings(connection: &mut Connection, settings: &AppSettings) -> Res
                speed_limit_bytes_per_second = excluded.speed_limit_bytes_per_second,
                browser_for_cookies = excluded.browser_for_cookies,
                output_directory = excluded.output_directory",
-            params![
-                concurrency,
-                speed_limit,
-                settings.browser_for_cookies,
-                settings.output_directory
-            ],
-        )
-        .map_err(|_| "storageError".to_string())?;
-    transaction.commit().map_err(|_| "storageError".to_string())
+        params![
+            concurrency,
+            speed_limit,
+            settings.browser_for_cookies,
+            settings.output_directory
+        ],
+    )?;
+    transaction.commit()?;
+    Ok(())
 }
 
-pub fn load_task(connection: &Connection, task_id: &str) -> Result<QueueTask, String> {
+pub fn load_task(connection: &Connection, task_id: &str) -> Result<QueueTask, StorageError> {
     connection
         .query_row(
             "SELECT id, url, state, revision, created_at, updated_at, progress,
                     downloaded_bytes, total_bytes, speed, eta, output_path,
-                    error_code, attempt_count
+                    error_code, attempt_count, download_stage
              FROM tasks WHERE id = ?1",
             [task_id],
             row_to_task,
         )
-        .optional()
-        .map_err(|_| "storageError".to_string())?
-        .ok_or_else(|| "taskNotFound".to_string())
+        .optional()?
+        .ok_or(StorageError::TaskNotFound)
 }
 
-pub fn insert_task(connection: &Connection, url: &str) -> Result<QueueTask, String> {
+pub fn insert_task(connection: &Connection, url: &str) -> Result<QueueTask, StorageError> {
     insert_task_with_format(connection, url, None)
 }
 
@@ -249,17 +223,15 @@ pub fn insert_task_with_format(
     connection: &Connection,
     url: &str,
     format_selector: Option<&str>,
-) -> Result<QueueTask, String> {
+) -> Result<QueueTask, StorageError> {
     let timestamp = unix_timestamp()?;
     let id = random_id(connection)?;
-    connection
-        .execute(
-            "INSERT INTO tasks
+    connection.execute(
+        "INSERT INTO tasks
              (id, url, state, revision, created_at, updated_at, format_selector)
              VALUES (?1, ?2, 'queued', 0, ?3, ?3, ?4)",
-            params![id, url, timestamp, format_selector],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![id, url, timestamp, format_selector],
+    )?;
     load_task(connection, &id)
 }
 
@@ -268,33 +240,27 @@ pub fn apply_action(
     task_id: &str,
     action: &str,
     expected_revision: i64,
-) -> Result<ActionOutcome, String> {
+) -> Result<ActionOutcome, StorageError> {
     let timestamp = unix_timestamp()?;
-    let transaction = connection
-        .transaction()
-        .map_err(|_| "storageError".to_string())?;
+    let transaction = connection.transaction()?;
     let current = load_task(&transaction, task_id)?;
     if current.revision != expected_revision {
-        return Err("revisionConflict".to_string());
+        return Err(StorageError::RevisionConflict);
     }
 
     let (next_state, control, should_dispatch) = transition(&current.state, action)?;
-    let changed = transaction
-        .execute(
-            "UPDATE tasks
+    let changed = transaction.execute(
+        "UPDATE tasks
              SET state = ?1, revision = revision + 1, updated_at = ?2,
                  error_code = CASE WHEN ?1 = 'queued' THEN NULL ELSE error_code END
              WHERE id = ?3 AND revision = ?4",
-            params![next_state, timestamp, task_id, expected_revision],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![next_state, timestamp, task_id, expected_revision],
+    )?;
     if changed != 1 {
-        return Err("revisionConflict".to_string());
+        return Err(StorageError::RevisionConflict);
     }
     let task = load_task(&transaction, task_id)?;
-    transaction
-        .commit()
-        .map_err(|_| "storageError".to_string())?;
+    transaction.commit()?;
     Ok(ActionOutcome {
         task,
         control,
@@ -306,37 +272,33 @@ pub fn remove_task(
     connection: &Connection,
     task_id: &str,
     expected_revision: i64,
-) -> Result<(), String> {
+) -> Result<(), StorageError> {
     let current = load_task(connection, task_id)?;
     if current.revision != expected_revision {
-        return Err("revisionConflict".to_string());
+        return Err(StorageError::RevisionConflict);
     }
     if !matches!(
         current.state.as_str(),
         "paused" | "stopped" | "completed" | "failed" | "interrupted"
     ) {
-        return Err("stopBeforeRemove".to_string());
+        return Err(StorageError::StopBeforeRemove);
     }
-    let changed = connection
-        .execute(
-            "DELETE FROM tasks WHERE id = ?1 AND revision = ?2",
-            params![task_id, expected_revision],
-        )
-        .map_err(|_| "storageError".to_string())?;
+    let changed = connection.execute(
+        "DELETE FROM tasks WHERE id = ?1 AND revision = ?2",
+        params![task_id, expected_revision],
+    )?;
     if changed == 1 {
         Ok(())
     } else {
-        Err("revisionConflict".to_string())
+        Err(StorageError::RevisionConflict)
     }
 }
 
 pub fn reserve_next_attempt(
     connection: &mut Connection,
-) -> Result<Option<AttemptReservation>, String> {
+) -> Result<Option<AttemptReservation>, StorageError> {
     let timestamp = unix_timestamp()?;
-    let transaction = connection
-        .transaction()
-        .map_err(|_| "storageError".to_string())?;
+    let transaction = connection.transaction()?;
     let candidate = transaction
         .query_row(
             "SELECT id, url, format_selector FROM tasks WHERE state = 'queued'
@@ -350,35 +312,28 @@ pub fn reserve_next_attempt(
                 ))
             },
         )
-        .optional()
-        .map_err(|_| "storageError".to_string())?;
+        .optional()?;
     let Some((task_id, url, format_selector)) = candidate else {
         return Ok(None);
     };
     let attempt_id = random_id(&transaction)?;
-    let changed = transaction
-        .execute(
-            "UPDATE tasks SET state = 'starting', revision = revision + 1,
+    let changed = transaction.execute(
+        "UPDATE tasks SET state = 'starting', revision = revision + 1,
                     updated_at = ?1, progress = 0, downloaded_bytes = 0,
                     total_bytes = NULL, speed = NULL, eta = NULL,
-                    output_path = NULL, error_code = NULL,
+                    download_stage = NULL, output_path = NULL, error_code = NULL,
                     attempt_count = attempt_count + 1
              WHERE id = ?2 AND state = 'queued'",
-            params![timestamp, task_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![timestamp, task_id],
+    )?;
     if changed != 1 {
         return Ok(None);
     }
-    transaction
-        .execute(
-            "INSERT INTO attempts (id, task_id, started_at) VALUES (?1, ?2, ?3)",
-            params![attempt_id, task_id, timestamp],
-        )
-        .map_err(|_| "storageError".to_string())?;
-    transaction
-        .commit()
-        .map_err(|_| "storageError".to_string())?;
+    transaction.execute(
+        "INSERT INTO attempts (id, task_id, started_at) VALUES (?1, ?2, ?3)",
+        params![attempt_id, task_id, timestamp],
+    )?;
+    transaction.commit()?;
     Ok(Some(AttemptReservation {
         task_id,
         attempt_id,
@@ -392,57 +347,52 @@ pub fn mark_started(
     reservation: &AttemptReservation,
     pid: u32,
     engine_version: &str,
-) -> Result<(), String> {
+) -> Result<(), StorageError> {
     let timestamp = unix_timestamp()?;
-    connection
-        .execute(
-            "UPDATE tasks SET state = 'downloading', revision = revision + 1, updated_at = ?1
+    connection.execute(
+        "UPDATE tasks SET state = 'downloading', revision = revision + 1, updated_at = ?1
              WHERE id = ?2 AND state = 'starting'",
-            params![timestamp, reservation.task_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
-    connection
-        .execute(
-            "UPDATE attempts SET pid = ?1, engine_version = ?2 WHERE id = ?3",
-            params![i64::from(pid), engine_version, reservation.attempt_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![timestamp, reservation.task_id],
+    )?;
+    connection.execute(
+        "UPDATE attempts SET pid = ?1, engine_version = ?2 WHERE id = ?3",
+        params![i64::from(pid), engine_version, reservation.attempt_id],
+    )?;
     Ok(())
 }
 
 pub fn update_progress(
     connection: &Connection,
     task_id: &str,
-    downloaded_bytes: i64,
-    total_bytes: Option<i64>,
-    speed: Option<f64>,
-    eta: Option<i64>,
-) -> Result<(), String> {
-    let progress = total_bytes
-        .filter(|total| *total > 0)
-        .map(|total| (downloaded_bytes as f64 / total as f64).clamp(0.0, 1.0))
-        .unwrap_or(0.0);
-    connection
-        .execute(
-            "UPDATE tasks SET progress = ?1, downloaded_bytes = ?2, total_bytes = ?3,
-                    speed = ?4, eta = ?5
-             WHERE id = ?6 AND state = 'downloading'",
-            params![progress, downloaded_bytes, total_bytes, speed, eta, task_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
+    update: &ProgressUpdate<'_>,
+) -> Result<(), StorageError> {
+    let timestamp = unix_timestamp()?;
+    connection.execute(
+        "UPDATE tasks SET progress = ?1, downloaded_bytes = ?2, total_bytes = ?3,
+                    speed = ?4, eta = ?5, download_stage = ?6, updated_at = ?7
+             WHERE id = ?8 AND state = 'downloading'",
+        params![
+            update.progress.clamp(0.0, 0.99),
+            update.downloaded_bytes,
+            update.total_bytes,
+            update.speed,
+            update.eta,
+            update.download_stage,
+            timestamp,
+            task_id
+        ],
+    )?;
     Ok(())
 }
 
-pub fn mark_postprocessing(connection: &Connection, task_id: &str) -> Result<(), String> {
+pub fn mark_postprocessing(connection: &Connection, task_id: &str) -> Result<(), StorageError> {
     let timestamp = unix_timestamp()?;
-    connection
-        .execute(
-            "UPDATE tasks SET state = 'postprocessing', progress = 1.0,
-                    revision = revision + 1, updated_at = ?1
+    connection.execute(
+        "UPDATE tasks SET state = 'postprocessing', progress = 0.99,
+                    download_stage = 'postprocessing', revision = revision + 1, updated_at = ?1
              WHERE id = ?2 AND state = 'downloading'",
-            params![timestamp, task_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![timestamp, task_id],
+    )?;
     Ok(())
 }
 
@@ -451,18 +401,16 @@ pub fn record_output(
     task_id: &str,
     path: &str,
     size: i64,
-) -> Result<(), String> {
+) -> Result<(), StorageError> {
     if size <= 0 {
-        return Err("outputMissing".to_string());
+        return Err(StorageError::OutputMissing);
     }
-    connection
-        .execute(
-            "UPDATE tasks SET output_path = ?1, downloaded_bytes = ?2,
+    connection.execute(
+        "UPDATE tasks SET output_path = ?1, downloaded_bytes = ?2,
                     total_bytes = ?2, progress = 1.0
              WHERE id = ?3",
-            params![path, size, task_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
+        params![path, size, task_id],
+    )?;
     Ok(())
 }
 
@@ -471,12 +419,10 @@ pub fn finalize_attempt(
     reservation: &AttemptReservation,
     control: Option<ControlIntent>,
     success: bool,
-    error_code: Option<&str>,
-) -> Result<(), String> {
+    error_code: Option<UserErrorCode>,
+) -> Result<(), StorageError> {
     let timestamp = unix_timestamp()?;
-    let transaction = connection
-        .transaction()
-        .map_err(|_| "storageError".to_string())?;
+    let transaction = connection.transaction()?;
     let current = load_task(&transaction, &reservation.task_id)?;
     let state = control
         .map(ControlIntent::stable_state)
@@ -484,39 +430,38 @@ pub fn finalize_attempt(
     let resolved_error = if success || control.is_some() {
         None
     } else {
-        error_code
+        error_code.map(UserErrorCode::as_str)
     };
     transaction
         .execute(
             "UPDATE tasks SET state = ?1, progress = CASE WHEN ?1 = 'completed' THEN 1.0 ELSE progress END,
-                    speed = NULL, eta = NULL, error_code = ?2,
+                    speed = NULL, eta = NULL, download_stage = NULL, error_code = ?2,
                     revision = revision + 1, updated_at = ?3
              WHERE id = ?4 AND revision = ?5",
             params![state, resolved_error, timestamp, reservation.task_id, current.revision],
         )
-        .map_err(|_| "storageError".to_string())?;
-    transaction
-        .execute(
-            "UPDATE attempts SET finished_at = ?1, result = ?2, error_code = ?3
+        ?;
+    transaction.execute(
+        "UPDATE attempts SET finished_at = ?1, result = ?2, error_code = ?3
              WHERE id = ?4",
-            params![timestamp, state, resolved_error, reservation.attempt_id],
-        )
-        .map_err(|_| "storageError".to_string())?;
-    transaction.commit().map_err(|_| "storageError".to_string())
+        params![timestamp, state, resolved_error, reservation.attempt_id],
+    )?;
+    transaction.commit()?;
+    Ok(())
 }
 
 pub fn fail_reservation(
     connection: &mut Connection,
     reservation: &AttemptReservation,
-    error_code: &str,
-) -> Result<(), String> {
+    error_code: UserErrorCode,
+) -> Result<(), StorageError> {
     finalize_attempt(connection, reservation, None, false, Some(error_code))
 }
 
 fn transition(
     current: &str,
     action: &str,
-) -> Result<(&'static str, Option<ControlIntent>, bool), String> {
+) -> Result<(&'static str, Option<ControlIntent>, bool), StorageError> {
     match (current, action) {
         ("queued", "pause") => Ok(("paused", None, false)),
         ("starting" | "downloading" | "postprocessing", "pause") => Ok((
@@ -531,14 +476,12 @@ fn transition(
             Some(ControlIntent::Stop),
             false,
         )),
-        _ => Err("invalidAction".to_string()),
+        _ => Err(StorageError::InvalidAction),
     }
 }
 
-fn random_id(connection: &Connection) -> Result<String, String> {
-    connection
-        .query_row("SELECT lower(hex(randomblob(16)))", [], |row| row.get(0))
-        .map_err(|_| "storageError".to_string())
+fn random_id(connection: &Connection) -> Result<String, StorageError> {
+    Ok(connection.query_row("SELECT lower(hex(randomblob(16)))", [], |row| row.get(0))?)
 }
 
 fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueueTask> {
@@ -554,42 +497,36 @@ fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<QueueTask> {
         total_bytes: row.get(8)?,
         speed: row.get(9)?,
         eta: row.get(10)?,
+        download_stage: row.get(14)?,
         output_path: row.get(11)?,
+        output_available: false,
         error_code: row.get(12)?,
         attempt_count: row.get(13)?,
     })
 }
 
-fn migrate(connection: &Connection) -> Result<(), String> {
-    let version: i64 = connection
-        .pragma_query_value(None, "user_version", |row| row.get(0))
-        .map_err(|_| "storageError".to_string())?;
+fn migrate(connection: &Connection) -> Result<(), StorageError> {
+    let version: i64 = connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if version > SCHEMA_VERSION {
-        return Err("databaseTooNew".to_string());
+        return Err(StorageError::DatabaseTooNew);
     }
 
-    let has_tasks: bool = connection
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'tasks')",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|_| "storageError".to_string())?;
+    let has_tasks: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'tasks')",
+        [],
+        |row| row.get(0),
+    )?;
 
     if !has_tasks {
-        connection
-            .execute_batch(&format!(
-                "{} PRAGMA user_version = {SCHEMA_VERSION};",
-                schema_sql()
-            ))
-            .map_err(|_| "storageError".to_string())?;
+        connection.execute_batch(&format!(
+            "{} PRAGMA user_version = {SCHEMA_VERSION};",
+            schema_sql()
+        ))?;
     } else if version < 2 {
         migrate_legacy_tasks(connection)?;
     } else {
         if version < 3 {
-            connection
-                .execute_batch(settings_schema_v3_sql())
-                .map_err(|_| "storageError".to_string())?;
+            connection.execute_batch(settings_schema_v3_sql())?;
         }
         if version < 4 {
             migrate_browser_cookie_setting(connection)?;
@@ -597,61 +534,66 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         if version < 5 {
             migrate_task_format_selection(connection)?;
         }
-        connection
-            .execute_batch(schema_sql())
-            .map_err(|_| "storageError".to_string())?;
-        connection
-            .pragma_update(None, "user_version", SCHEMA_VERSION)
-            .map_err(|_| "storageError".to_string())?;
+        if version < 6 {
+            migrate_download_stage(connection)?;
+        }
+        connection.execute_batch(schema_sql())?;
+        connection.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     }
     Ok(())
 }
 
-fn migrate_browser_cookie_setting(connection: &Connection) -> Result<(), String> {
-    let has_column: bool = connection
-        .query_row(
-            "SELECT EXISTS(
+fn migrate_browser_cookie_setting(connection: &Connection) -> Result<(), StorageError> {
+    let has_column: bool = connection.query_row(
+        "SELECT EXISTS(
                 SELECT 1 FROM pragma_table_info('app_settings')
                 WHERE name = 'browser_for_cookies'
             )",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|_| "storageError".to_string())?;
+        [],
+        |row| row.get(0),
+    )?;
     if !has_column {
-        connection
-            .execute(
-                "ALTER TABLE app_settings ADD COLUMN browser_for_cookies TEXT",
-                [],
-            )
-            .map_err(|_| "storageError".to_string())?;
+        connection.execute(
+            "ALTER TABLE app_settings ADD COLUMN browser_for_cookies TEXT",
+            [],
+        )?;
     }
     Ok(())
 }
 
-fn migrate_task_format_selection(connection: &Connection) -> Result<(), String> {
-    let has_column: bool = connection
-        .query_row(
-            "SELECT EXISTS(
+fn migrate_task_format_selection(connection: &Connection) -> Result<(), StorageError> {
+    let has_column: bool = connection.query_row(
+        "SELECT EXISTS(
                 SELECT 1 FROM pragma_table_info('tasks')
                 WHERE name = 'format_selector'
             )",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|_| "storageError".to_string())?;
+        [],
+        |row| row.get(0),
+    )?;
     if !has_column {
-        connection
-            .execute("ALTER TABLE tasks ADD COLUMN format_selector TEXT", [])
-            .map_err(|_| "storageError".to_string())?;
+        connection.execute("ALTER TABLE tasks ADD COLUMN format_selector TEXT", [])?;
     }
     Ok(())
 }
 
-fn migrate_legacy_tasks(connection: &Connection) -> Result<(), String> {
-    connection
-        .execute_batch(&format!(
-            "BEGIN IMMEDIATE;
+fn migrate_download_stage(connection: &Connection) -> Result<(), StorageError> {
+    let has_column: bool = connection.query_row(
+        "SELECT EXISTS(
+                SELECT 1 FROM pragma_table_info('tasks')
+                WHERE name = 'download_stage'
+            )",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_column {
+        connection.execute("ALTER TABLE tasks ADD COLUMN download_stage TEXT", [])?;
+    }
+    Ok(())
+}
+
+fn migrate_legacy_tasks(connection: &Connection) -> Result<(), StorageError> {
+    connection.execute_batch(&format!(
+        "BEGIN IMMEDIATE;
              DROP INDEX IF EXISTS idx_tasks_created_at;
              DROP INDEX IF EXISTS idx_tasks_dispatch;
              ALTER TABLE tasks RENAME TO tasks_legacy;
@@ -664,9 +606,9 @@ fn migrate_legacy_tasks(connection: &Connection) -> Result<(), String> {
              DROP TABLE tasks_legacy;
              PRAGMA user_version = {SCHEMA_VERSION};
              COMMIT;",
-            schema_sql()
-        ))
-        .map_err(|_| "storageError".to_string())
+        schema_sql()
+    ))?;
+    Ok(())
 }
 
 fn schema_sql() -> &'static str {
@@ -688,7 +630,8 @@ fn schema_sql() -> &'static str {
         output_path TEXT,
         error_code TEXT,
         attempt_count INTEGER NOT NULL DEFAULT 0,
-        format_selector TEXT
+        format_selector TEXT,
+        download_stage TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_tasks_dispatch
         ON tasks(state, created_at ASC, id ASC);
@@ -824,7 +767,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v4_queue_and_reserves_the_selected_format() {
+    fn migrates_v4_queue_to_v6_and_reserves_the_selected_format() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("queue.sqlite3");
         {
@@ -872,10 +815,16 @@ mod tests {
             reservation.format_selector.as_deref(),
             Some("137+bestaudio/137/best")
         );
+        assert_eq!(
+            super::load_task(&connection, &task.id)
+                .unwrap()
+                .download_stage,
+            None
+        );
         let version: i64 = connection
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 5);
+        assert_eq!(version, 6);
     }
 
     #[test]

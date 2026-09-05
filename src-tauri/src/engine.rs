@@ -7,11 +7,13 @@ use std::{
 };
 
 use crate::{
-    model::{EngineInfo, EngineStatus, MediaFormat, MediaProbe},
+    error::{EngineError, UserErrorCode},
+    model::{BrowserCookieSource, EngineInfo, EngineStatus, MediaFormat, MediaProbe},
     process_supervisor::{OutputStream, ProcessLine, SupervisedProcess},
 };
 
 const PROGRESS_PREFIX: &str = "__JIVEFETCH_PROGRESS__";
+const DOWNLOAD_PLAN_PREFIX: &str = "__JIVEFETCH_DOWNLOAD_PLAN__";
 const PHASE_PREFIX: &str = "__JIVEFETCH_PHASE__";
 const FILE_PREFIX: &str = "__JIVEFETCH_FILE__";
 const PROBE_MAX_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
@@ -30,6 +32,34 @@ pub struct EngineRegistry {
 }
 
 #[derive(Debug, Clone)]
+pub struct BinaryDiscovery {
+    working_directory: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct YtDlpExecutor {
+    registry: EngineRegistry,
+}
+
+pub trait EngineExecutor: Send + Sync {
+    fn status(&self) -> EngineStatus;
+    fn download_plan(
+        &self,
+        url: &str,
+        output_directory: &Path,
+        speed_limit_bytes_per_second: Option<u64>,
+        browser_for_cookies: Option<BrowserCookieSource>,
+        format_selector: Option<&str>,
+    ) -> Result<ExecutionPlan, EngineError>;
+    fn probe_formats(
+        &self,
+        url: &str,
+        output_directory: &Path,
+        browser_for_cookies: Option<BrowserCookieSource>,
+    ) -> Result<MediaProbe, EngineError>;
+}
+
+#[derive(Debug, Clone)]
 pub struct ExecutionPlan {
     pub executable: PathBuf,
     pub args: Vec<String>,
@@ -39,7 +69,10 @@ pub struct ExecutionPlan {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EngineEvent {
+    DownloadPlan(Vec<DownloadComponent>),
     Progress {
+        component_id: String,
+        stage: String,
         downloaded_bytes: i64,
         total_bytes: Option<i64>,
         speed: Option<f64>,
@@ -47,6 +80,13 @@ pub enum EngineEvent {
     },
     PostProcessing,
     OutputFile(PathBuf),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DownloadComponent {
+    pub id: String,
+    pub stage: String,
+    pub total_bytes: Option<i64>,
 }
 
 #[derive(Debug, Default)]
@@ -119,39 +159,45 @@ impl EngineFailureClassifier {
             line.contains("permission denied") || line.contains("operation not permitted");
     }
 
-    pub fn error_code(&self, browser_selected: bool) -> Option<&'static str> {
+    pub fn error_code(&self, browser_selected: bool) -> Option<UserErrorCode> {
         if browser_selected && self.browser_cookies_unavailable {
-            Some("browserCookiesUnavailable")
+            Some(UserErrorCode::BrowserCookiesUnavailable)
         } else if self.authentication_required {
-            Some("authenticationRequired")
+            Some(UserErrorCode::AuthenticationRequired)
         } else if self.media_unavailable {
-            Some("mediaUnavailable")
+            Some(UserErrorCode::MediaUnavailable)
         } else if self.rate_limited {
-            Some("rateLimited")
+            Some(UserErrorCode::RateLimited)
         } else if self.http_forbidden {
-            Some("httpForbidden")
+            Some(UserErrorCode::HttpForbidden)
         } else if self.format_unavailable {
-            Some("formatUnavailable")
+            Some(UserErrorCode::FormatUnavailable)
         } else if self.network_error {
-            Some("networkError")
+            Some(UserErrorCode::Network)
         } else if self.permission_denied {
-            Some("permissionDenied")
+            Some(UserErrorCode::PermissionDenied)
         } else if browser_selected {
-            Some("browserCookiesUnavailable")
+            Some(UserErrorCode::BrowserCookiesUnavailable)
         } else {
             None
         }
     }
 }
 
-impl EngineRegistry {
-    pub fn discover(output_directory: &Path) -> Self {
-        Self {
-            yt_dlp: discover_binary(&["yt-dlp"], "--version", output_directory),
-            ffmpeg: discover_binary(&["ffmpeg"], "-version", output_directory),
-        }
+impl BinaryDiscovery {
+    pub fn new(working_directory: PathBuf) -> Self {
+        Self { working_directory }
     }
 
+    pub fn discover(&self) -> EngineRegistry {
+        EngineRegistry {
+            yt_dlp: discover_binary(&["yt-dlp"], "--version", &self.working_directory),
+            ffmpeg: discover_binary(&["ffmpeg"], "-version", &self.working_directory),
+        }
+    }
+}
+
+impl EngineRegistry {
     pub fn status(&self) -> EngineStatus {
         EngineStatus {
             app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -160,23 +206,35 @@ impl EngineRegistry {
             ffmpeg: engine_info(self.ffmpeg.as_ref()),
         }
     }
+}
+
+impl YtDlpExecutor {
+    pub fn new(registry: EngineRegistry) -> Self {
+        Self { registry }
+    }
+
+    pub fn status(&self) -> EngineStatus {
+        self.registry.status()
+    }
 
     pub fn download_plan(
         &self,
         url: &str,
         output_directory: &Path,
         speed_limit_bytes_per_second: Option<u64>,
-        browser_for_cookies: Option<&str>,
+        browser_for_cookies: Option<BrowserCookieSource>,
         format_selector: Option<&str>,
-    ) -> Result<ExecutionPlan, String> {
+    ) -> Result<ExecutionPlan, EngineError> {
         let yt_dlp = self
+            .registry
             .yt_dlp
             .as_ref()
-            .ok_or_else(|| "ytDlpMissing".to_string())?;
+            .ok_or(EngineError::YtDlpMissing)?;
         let ffmpeg = self
+            .registry
             .ffmpeg
             .as_ref()
-            .ok_or_else(|| "ffmpegMissing".to_string())?;
+            .ok_or(EngineError::FfmpegMissing)?;
         let mut args = vec![
             "--ignore-config".to_string(),
             "--no-playlist".to_string(),
@@ -187,10 +245,14 @@ impl EngineRegistry {
             "0.5".to_string(),
             "--progress-template".to_string(),
             format!(
-                "download:{PROGRESS_PREFIX}%(progress.downloaded_bytes|0)s\t%(progress.total_bytes,progress.total_bytes_estimate|0)s\t%(progress.speed|0)s\t%(progress.eta|0)s"
+                "download:{PROGRESS_PREFIX}%(info.format_id|unknown)s\t%(info.vcodec|none)s\t%(info.acodec|none)s\t%(progress.downloaded_bytes|0)s\t%(progress.total_bytes,progress.total_bytes_estimate|0)s\t%(progress.speed|0)s\t%(progress.eta|0)s"
             ),
             "--progress-template".to_string(),
             format!("postprocess:{PHASE_PREFIX}postprocessing"),
+            "--print".to_string(),
+            format!(
+                "before_dl:{DOWNLOAD_PLAN_PREFIX}%(requested_formats.0.format_id,format_id|unknown)s\t%(requested_formats.0.vcodec,vcodec|none)s\t%(requested_formats.0.acodec,acodec|none)s\t%(requested_formats.0.filesize,requested_formats.0.filesize_approx,filesize,filesize_approx|0)s\t%(requested_formats.1.format_id|)s\t%(requested_formats.1.vcodec|none)s\t%(requested_formats.1.acodec|none)s\t%(requested_formats.1.filesize,requested_formats.1.filesize_approx|0)s"
+            ),
             "--print".to_string(),
             format!("after_move:{FILE_PREFIX}%(filepath)j"),
             "--paths".to_string(),
@@ -204,7 +266,10 @@ impl EngineRegistry {
             args.extend(["--limit-rate".to_string(), limit.to_string()]);
         }
         if let Some(browser) = browser_for_cookies {
-            args.extend(["--cookies-from-browser".to_string(), browser.to_string()]);
+            args.extend([
+                "--cookies-from-browser".to_string(),
+                browser.as_yt_dlp_arg().to_string(),
+            ]);
         }
         args.extend([
             "--format".to_string(),
@@ -229,12 +294,13 @@ impl EngineRegistry {
         &self,
         url: &str,
         output_directory: &Path,
-        browser_for_cookies: Option<&str>,
-    ) -> Result<MediaProbe, String> {
+        browser_for_cookies: Option<BrowserCookieSource>,
+    ) -> Result<MediaProbe, EngineError> {
         let yt_dlp = self
+            .registry
             .yt_dlp
             .as_ref()
-            .ok_or_else(|| "ytDlpMissing".to_string())?;
+            .ok_or(EngineError::YtDlpMissing)?;
         let mut args = vec![
             "--ignore-config".to_string(),
             "--no-playlist".to_string(),
@@ -243,7 +309,10 @@ impl EngineRegistry {
             "--dump-single-json".to_string(),
         ];
         if let Some(browser) = browser_for_cookies {
-            args.extend(["--cookies-from-browser".to_string(), browser.to_string()]);
+            args.extend([
+                "--cookies-from-browser".to_string(),
+                browser.as_yt_dlp_arg().to_string(),
+            ]);
         }
         args.extend(["--".to_string(), url.to_string()]);
 
@@ -254,7 +323,7 @@ impl EngineRegistry {
             PROBE_MAX_OUTPUT_BYTES,
             8,
         )
-        .map_err(|_| "engineSpawnFailed".to_string())?;
+        .map_err(EngineError::Spawn)?;
         let deadline = Instant::now() + PROBE_TIMEOUT;
         let mut output = String::new();
         let mut failure = EngineFailureClassifier::default();
@@ -269,10 +338,11 @@ impl EngineRegistry {
                         &mut failure,
                     );
                     if !status.success() {
-                        return Err(failure
-                            .error_code(browser_for_cookies.is_some())
-                            .unwrap_or("probeFailed")
-                            .to_string());
+                        return Err(EngineError::Classified(
+                            failure
+                                .error_code(browser_for_cookies.is_some())
+                                .unwrap_or(UserErrorCode::ProbeFailed),
+                        ));
                     }
                     return parse_probe_json(&output);
                 }
@@ -281,11 +351,43 @@ impl EngineRegistry {
                 }
                 Ok(None) => {
                     let _ = process.terminate_owned_tree(Duration::from_secs(2));
-                    return Err("probeTimedOut".to_string());
+                    return Err(EngineError::ProbeTimedOut);
                 }
-                Err(_) => return Err("probeFailed".to_string()),
+                Err(error) => return Err(EngineError::Probe(error)),
             }
         }
+    }
+}
+
+impl EngineExecutor for YtDlpExecutor {
+    fn status(&self) -> EngineStatus {
+        self.status()
+    }
+
+    fn download_plan(
+        &self,
+        url: &str,
+        output_directory: &Path,
+        speed_limit_bytes_per_second: Option<u64>,
+        browser_for_cookies: Option<BrowserCookieSource>,
+        format_selector: Option<&str>,
+    ) -> Result<ExecutionPlan, EngineError> {
+        self.download_plan(
+            url,
+            output_directory,
+            speed_limit_bytes_per_second,
+            browser_for_cookies,
+            format_selector,
+        )
+    }
+
+    fn probe_formats(
+        &self,
+        url: &str,
+        output_directory: &Path,
+        browser_for_cookies: Option<BrowserCookieSource>,
+    ) -> Result<MediaProbe, EngineError> {
+        self.probe_formats(url, output_directory, browser_for_cookies)
     }
 }
 
@@ -311,9 +413,9 @@ fn collect_probe_lines(
     }
 }
 
-fn parse_probe_json(output: &str) -> Result<MediaProbe, String> {
+fn parse_probe_json(output: &str) -> Result<MediaProbe, EngineError> {
     let value: serde_json::Value =
-        serde_json::from_str(output.trim()).map_err(|_| "probeOutputInvalid".to_string())?;
+        serde_json::from_str(output.trim()).map_err(EngineError::ProbeOutputInvalid)?;
     let title = value
         .get("title")
         .and_then(serde_json::Value::as_str)
@@ -338,7 +440,7 @@ fn parse_probe_json(output: &str) -> Result<MediaProbe, String> {
     formats.dedup_by(|left, right| left.selector == right.selector);
     formats.truncate(100);
     if formats.is_empty() {
-        return Err("noFormats".to_string());
+        return Err(EngineError::NoFormats);
     }
     Ok(MediaProbe {
         title,
@@ -408,13 +510,36 @@ pub fn parse_engine_line(stream: OutputStream, line: &str) -> Option<EngineEvent
     if stream != OutputStream::Stdout {
         return None;
     }
+    if let Some(payload) = line.strip_prefix(DOWNLOAD_PLAN_PREFIX) {
+        let fields = payload.split('\t').collect::<Vec<_>>();
+        let mut components = Vec::new();
+        for component in fields.as_chunks::<4>().0.iter().take(2) {
+            let id = component[0].trim();
+            if id.is_empty() || id == "NA" {
+                continue;
+            }
+            components.push(DownloadComponent {
+                id: id.to_string(),
+                stage: media_stage(component[1], component[2]).to_string(),
+                total_bytes: parse_i64(Some(component[3])).filter(|value| *value > 0),
+            });
+        }
+        if !components.is_empty() {
+            return Some(EngineEvent::DownloadPlan(components));
+        }
+    }
     if let Some(payload) = line.strip_prefix(PROGRESS_PREFIX) {
         let mut fields = payload.split('\t');
+        let component_id = fields.next()?.trim().to_string();
+        let video_codec = fields.next()?;
+        let audio_codec = fields.next()?;
         let downloaded_bytes = parse_i64(fields.next())?;
         let total = parse_i64(fields.next()).filter(|value| *value > 0);
         let speed = parse_f64(fields.next()).filter(|value| *value > 0.0);
         let eta = parse_i64(fields.next()).filter(|value| *value >= 0);
         return Some(EngineEvent::Progress {
+            component_id,
+            stage: media_stage(video_codec, audio_codec).to_string(),
             downloaded_bytes,
             total_bytes: total,
             speed,
@@ -429,6 +554,24 @@ pub fn parse_engine_line(stream: OutputStream, line: &str) -> Option<EngineEvent
         return Some(EngineEvent::OutputFile(PathBuf::from(path)));
     }
     None
+}
+
+fn media_stage(video_codec: &str, audio_codec: &str) -> &'static str {
+    let has_video = !video_codec.trim().is_empty()
+        && !matches!(
+            video_codec.trim().to_ascii_lowercase().as_str(),
+            "none" | "na"
+        );
+    let has_audio = !audio_codec.trim().is_empty()
+        && !matches!(
+            audio_codec.trim().to_ascii_lowercase().as_str(),
+            "none" | "na"
+        );
+    match (has_video, has_audio) {
+        (true, false) => "video",
+        (false, true) => "audio",
+        _ => "media",
+    }
 }
 
 pub fn verified_output_file(path: &Path, output_directory: &Path) -> Option<(String, i64)> {
@@ -566,11 +709,13 @@ fn concise_version(line: &str) -> String {
 mod tests {
     use std::{fs, path::PathBuf};
 
-    use crate::process_supervisor::OutputStream;
+    use crate::{
+        error::UserErrorCode, model::BrowserCookieSource, process_supervisor::OutputStream,
+    };
 
     use super::{
         concise_version, parse_engine_line, parse_probe_json, verified_output_file, EngineBinary,
-        EngineEvent, EngineFailureClassifier, EngineRegistry,
+        EngineEvent, EngineFailureClassifier, EngineRegistry, YtDlpExecutor,
     };
 
     #[test]
@@ -589,7 +734,10 @@ mod tests {
             OutputStream::Stderr,
             "WARNING: cannot decrypt v10 cookies: no key found",
         );
-        assert_eq!(cookies.error_code(true), Some("browserCookiesUnavailable"));
+        assert_eq!(
+            cookies.error_code(true),
+            Some(UserErrorCode::BrowserCookiesUnavailable)
+        );
         assert_eq!(cookies.error_code(false), None);
 
         let mut authentication = EngineFailureClassifier::default();
@@ -599,7 +747,7 @@ mod tests {
         );
         assert_eq!(
             authentication.error_code(false),
-            Some("authenticationRequired")
+            Some(UserErrorCode::AuthenticationRequired)
         );
 
         let mut network = EngineFailureClassifier::default();
@@ -607,18 +755,21 @@ mod tests {
             OutputStream::Stderr,
             "ERROR: Failed to resolve 'www.example.com'",
         );
-        assert_eq!(network.error_code(false), Some("networkError"));
+        assert_eq!(network.error_code(false), Some(UserErrorCode::Network));
 
         let mut forbidden = EngineFailureClassifier::default();
         forbidden.observe(
             OutputStream::Stderr,
             "ERROR: unable to download video data: HTTP Error 403: Forbidden",
         );
-        assert_eq!(forbidden.error_code(false), Some("httpForbidden"));
+        assert_eq!(
+            forbidden.error_code(false),
+            Some(UserErrorCode::HttpForbidden)
+        );
 
         assert_eq!(
             EngineFailureClassifier::default().error_code(true),
-            Some("browserCookiesUnavailable")
+            Some(UserErrorCode::BrowserCookiesUnavailable)
         );
     }
 
@@ -627,9 +778,11 @@ mod tests {
         assert_eq!(
             parse_engine_line(
                 OutputStream::Stdout,
-                "__JIVEFETCH_PROGRESS__512\t1024\t128.5\t4"
+                "__JIVEFETCH_PROGRESS__137\tavc1\tnone\t512\t1024\t128.5\t4"
             ),
             Some(EngineEvent::Progress {
+                component_id: "137".to_string(),
+                stage: "video".to_string(),
                 downloaded_bytes: 512,
                 total_bytes: Some(1024),
                 speed: Some(128.5),
@@ -641,8 +794,29 @@ mod tests {
             Some(EngineEvent::OutputFile(PathBuf::from("/tmp/video.mp4")))
         );
         assert_eq!(
-            parse_engine_line(OutputStream::Stderr, "__JIVEFETCH_PROGRESS__1\t2\t3\t4"),
+            parse_engine_line(
+                OutputStream::Stderr,
+                "__JIVEFETCH_PROGRESS__137\tavc1\tnone\t1\t2\t3\t4"
+            ),
             None
+        );
+        assert_eq!(
+            parse_engine_line(
+                OutputStream::Stdout,
+                "__JIVEFETCH_DOWNLOAD_PLAN__137\tavc1\tnone\t1000\t251\tnone\topus\t250"
+            ),
+            Some(EngineEvent::DownloadPlan(vec![
+                super::DownloadComponent {
+                    id: "137".to_string(),
+                    stage: "video".to_string(),
+                    total_bytes: Some(1000),
+                },
+                super::DownloadComponent {
+                    id: "251".to_string(),
+                    stage: "audio".to_string(),
+                    total_bytes: Some(250),
+                },
+            ]))
         );
     }
 
@@ -680,12 +854,12 @@ mod tests {
                 version: "test".to_string(),
             }),
         };
-        let plan = registry
+        let plan = YtDlpExecutor::new(registry)
             .download_plan(
                 "https://example.com/video?id=1",
                 &PathBuf::from("/tmp/downloads"),
                 Some(524_288),
-                Some("firefox"),
+                Some(BrowserCookieSource::Firefox),
                 None,
             )
             .unwrap();
@@ -717,7 +891,7 @@ mod tests {
                 version: "test".to_string(),
             }),
         };
-        let plan = registry
+        let plan = YtDlpExecutor::new(registry)
             .download_plan(
                 "https://example.com/video",
                 &PathBuf::from("/tmp/downloads"),

@@ -14,6 +14,7 @@ import {
   getEngineStatus,
   getSettings,
   listTasks,
+  openOutput,
   probeMedia,
   removeTask,
   updateSettings,
@@ -59,6 +60,7 @@ const backendErrorKeys: Record<string, TranslationKey> = {
   networkError: "networkError",
   permissionDenied: "permissionDenied",
   outputMissing: "outputMissing",
+  openOutputFailed: "openOutputFailed",
   processSupervisorError: "processSupervisorError",
   schedulerError: "schedulerError",
   outputDirectoryError: "outputDirectoryError",
@@ -90,6 +92,12 @@ const removableStates = new Set<TaskState>([
   "interrupted",
 ]);
 const failedStates = new Set<TaskState>(["failed", "interrupted"]);
+const downloadStageKeys: Record<string, TranslationKey> = {
+  video: "downloadingVideo",
+  audio: "downloadingAudio",
+  media: "downloadingMedia",
+  postprocessing: "mergingMedia",
+};
 const concurrencyPresets = Array.from({ length: 10 }, (_, index) => index + 1);
 const speedPresets = [512 * 1024, 1024 * 1024, 2 * 1024 * 1024, 3 * 1024 * 1024];
 const themeStorageKey = "jivefetch.theme";
@@ -105,14 +113,15 @@ function errorKeyForReason(reason: unknown): TranslationKey {
   return backendErrorKeys[code] ?? "unexpectedError";
 }
 
-function stateClass(state: TaskState) {
+function stateClass(task: QueueTask) {
+  const state = task.state === "completed" && !task.outputAvailable ? "failed" : task.state;
   return `state state-${state}`;
 }
 
-function progressClass(state: TaskState) {
-  if (state === "completed") return "progress-track progress-completed";
-  if (failedStates.has(state)) return "progress-track progress-failed";
-  if (activeStates.has(state)) return "progress-track progress-active";
+function progressClass(task: QueueTask) {
+  if (task.state === "completed" && task.outputAvailable) return "progress-track progress-completed";
+  if (task.state === "completed" || failedStates.has(task.state)) return "progress-track progress-failed";
+  if (activeStates.has(task.state)) return "progress-track progress-active";
   return "progress-track progress-idle";
 }
 
@@ -351,6 +360,16 @@ export default function App() {
     }
   };
 
+  const openTaskOutput = async (task: QueueTask) => {
+    setError(null);
+    try {
+      await openOutput(task.id);
+    } catch (reason) {
+      setError(errorKeyForReason(reason));
+      await refreshTasks(false);
+    }
+  };
+
   const chooseOutputDirectory = async () => {
     if (!settings) return;
     try {
@@ -399,7 +418,11 @@ export default function App() {
           <img className="brand-mark" src="/jivefetch-icon.png" alt="" />
           <div>
             <strong>{t("appName")}</strong>
-            <span>{t("tagline")}</span>
+            <span className="brand-status">
+              {t("engineStatusLead")}
+              <i className={`engine-readiness-dot ${engines?.ready ? "ready" : "missing"}`} aria-hidden="true" />
+              {engines?.ready ? t("enginesReady") : t("enginesNotReady")}
+            </span>
           </div>
         </div>
         <div className="engine-summary" aria-label={t("versionSummary")}>
@@ -549,10 +572,6 @@ export default function App() {
       </section>
 
       <section className="hero">
-        <div>
-          <div className="eyebrow"><span className="pulse" /> {engines?.ready ? t("foundation") : t("enginesMissing")}</div>
-          <h1>{t("localFirst")}</h1>
-        </div>
         <form className="url-form" onSubmit={submit}>
           <label htmlFor="media-url">{t("addUrl")}</label>
           <div className="url-row">
@@ -628,7 +647,10 @@ export default function App() {
             {tasks.map((task) => {
               const shown = displayUrl(task.url);
               const progress = Math.round(task.progress * 100);
-              const taskError = task.errorCode ? backendErrorKeys[task.errorCode] : null;
+              const taskError = task.state === "completed" && !task.outputAvailable
+                ? "outputMissing"
+                : task.errorCode ? backendErrorKeys[task.errorCode] : null;
+              const taskStage = task.downloadStage ? downloadStageKeys[task.downloadStage] : null;
               return (
                 <article
                   className="task-card"
@@ -643,11 +665,11 @@ export default function App() {
                   }}
                 >
                   <div className="task-main">
-                    <span className={stateClass(task.state)}>{t(task.state)}</span>
+                    <span className={stateClass(task)}>{t(task.state)}</span>
                     <div className="task-details">
                       <div className="task-url"><strong>{shown.host}</strong><span>{shown.path}</span></div>
                       <div className="progress-row">
-                        <div className={progressClass(task.state)} aria-label={`${progress}% ${t("complete")}`}>
+                        <div className={progressClass(task)} aria-label={`${progress}% ${t("complete")}`}>
                           <span style={{ width: `${progress}%` }} />
                         </div>
                         <small>{progress}%</small>
@@ -657,6 +679,9 @@ export default function App() {
                         <span>{t("speed")}: {task.speed ? `${formatBytes(task.speed, locale)}/s` : "—"}</span>
                         <span>{t("etaLabel")}: {task.eta !== null ? formatDuration(task.eta) : "—"}</span>
                       </div>
+                      {taskStage && ["downloading", "postprocessing"].includes(task.state) ? (
+                        <div className="task-stage">{t(taskStage)}</div>
+                      ) : null}
                       {task.outputPath ? <div className="task-output">{task.outputPath}</div> : null}
                       {taskError ? <div className="task-error">{t(taskError)}</div> : null}
                     </div>
@@ -666,6 +691,9 @@ export default function App() {
                     </div>
                   </div>
                   <div className="task-actions">
+                    {task.state === "completed" && task.outputAvailable ? (
+                      <button type="button" onClick={() => void openTaskOutput(task)}>{t("openFile")}</button>
+                    ) : null}
                     {["queued", "starting", "downloading", "postprocessing"].includes(task.state) ? (
                       <button type="button" onClick={() => void runAction(task, "pause")}>{t("pause")}</button>
                     ) : null}

@@ -66,10 +66,10 @@ lockfile/Actions SHA，最小 CI 权限，生成 SBOM、checksum 和 provenance�
 
 ## 9. 发布 gate
 
-最新成功发布的版本始终标记为 GitHub `Latest`，即使 production signing 尚未就绪。
-`Latest` 只表示发布顺序，不代表认证或 production readiness。未签名/未 notarize 的
-artifact 必须明确说明，并且不得宣称 production support。完整支持的 production release
-必须通过以下全部 gate。
+在 application signing、notarization、managed sidecar 许可及其余 release gate 完成前，
+成功构建的版本会作为 GitHub pre-release 发布。未签名/未 notarize 的 artifact 必须明确
+说明，并且不得宣称 production support。完整支持的 production release 必须通过以下全部
+gate。
 
 GitHub release 描述在同一页面嵌入 English、Русский 和简体中文三个部分。语言导航使用
 具体 tag 页面的绝对 URL 加 section anchor，而不是相对于多版本列表的 anchor，因此切换
