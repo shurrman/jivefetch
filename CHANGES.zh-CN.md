@@ -4,16 +4,21 @@
 
 ## 尚未发布
 
+暂无变更。
+
+## 0.3.1 - 2026-09-05
+
 ### 新增
 
 - 新增英语、俄语、简体中文完整安装指南，覆盖 macOS、Windows、Ubuntu/Debian、
-  Fedora、Arch Linux、AppImage 与 DEB，并说明如何安装和验证 `yt-dlp`、FFmpeg，
+  Fedora、Arch Linux、AppImage 与 DEB，并说明如何安装和验证 `yt-dlp`、FFmpeg、Deno，
   核对 JiveFetch checksum，完成首次启动及更新下载引擎。
 - 每个 README 译本的开头现在都会醒目说明跨平台应用的引擎前置要求，并提供安装指南链接。
 - 新增语言无关的 README hero，展示面向用户的下载队列、进度状态、媒体格式与跨设备
   使用，不包含第三方品牌。
 - 所有 README 改为面向用户的顺序：先说明可获得的结果与功能，再列出前置要求、平台
   软件包和安装链接。
+- 在顶部状态区域的 `yt-dlp` 与 FFmpeg 版本旁新增 JiveFetch 应用版本。
 
 ### 修复
 
@@ -22,15 +27,29 @@
   工作，同时仍能访问 Assets。
 - 未签名 macOS 安装指南改为与版本无关，因此新 Latest 发布后不会继续显示过时的 DMG
   文件名或 checksum。
+- 将通用 `yt-dlp` 失败替换为本地化且可操作的错误类别：浏览器 Cookie 访问、认证、
+  媒体不可用、请求频率限制、格式、网络与文件系统权限；不会持久化原始引擎输出。
+- 记录当前未签名 macOS 构建读取 Chrome Cookie 所需的完全磁盘访问权限与钥匙串步骤，
+  并提供公开媒体的安全模式及 Firefox 临时替代方案。
+- 将引擎版本探测从受保护的 Downloads 文件夹移至应用自己的数据目录，避免 macOS TCC
+  启动竞态导致 Homebrew `yt-dlp` 显示缺失而 FFmpeg 同时可用。
+- 在下载器的精简 `PATH` 中加入标准软件包管理器目录和 Deno 用户目录。通过 Finder
+  启动的 macOS 构建现在能让 `yt-dlp` 找到 Homebrew Deno，避免元数据探测成功后因
+  缺少 JavaScript 运行时而在 YouTube 媒体请求中收到 HTTP 403。
+- HTTP 403 现在有独立的本地化错误，提示更新 `yt-dlp`、安装 Deno，或为受限媒体启用
+  浏览器 Cookie。
 
 ### 指标
 
-- 文档：从 48 个增加到 51 个受跟踪 Markdown 文件，从 16 组增加到 17 组已验证的
+- 文档：从 48 个增加到 54 个受跟踪 Markdown 文件，从 16 组增加到 18 组已验证的
   EN/RU/简体中文文档。
 - 三个 README 合计从 389 行缩减为 93 行；架构与开发细节保留在独立文档中，不再放在
   产品入口页面。
 - Release 导航：3 个含义不明确的列表相对 anchor 改为 3 个明确的 tag 页面 anchor，
   并由 release-note checker 验证。
+- 顶部版本指示：从 2 个引擎版本增加为 1 个应用版本加 2 个引擎版本。
+- 面向用户的引擎失败类别：从 1 个通用错误增加为 8 个可操作的本地化类别并保留通用
+  fallback；常规 Rust 测试从 19 个增加到 22 个。
 
 ## 0.3.0 - 2026-09-03
 

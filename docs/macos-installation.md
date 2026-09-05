@@ -56,6 +56,18 @@ Repeat the verification and preparation after replacing JiveFetch with a newer u
 build. Do not use these commands for an app from another source or when its checksum does
 not match the release manifest.
 
+## Privacy permissions after replacement
+
+Every ad-hoc rebuild has a different code identity. macOS may therefore stop matching
+the previous Downloads or Full Disk Access decision after the app is replaced. If access
+still fails, remove the old JiveFetch entry from **System Settings → Privacy & Security →
+Full Disk Access**, add `/Applications/JiveFetch.app` again, quit the app completely, and
+reopen it. Accept the separate Downloads-folder prompt if macOS shows it.
+
+The **Chrome Safe Storage** Keychain prompt appears only when `yt-dlp` actually tries to
+read and decrypt Chrome cookies. It will not appear when cookies are disabled or when an
+earlier engine, JavaScript-runtime, network, or download-folder error stops the attempt.
+
 ## Remaining limitation
 
 Normal double-click installation without Terminal preparation requires Developer ID

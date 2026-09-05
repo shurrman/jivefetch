@@ -5,8 +5,8 @@
 ![Очередь загрузок JiveFetch](docs/assets/jivefetch-hero.png)
 
 JiveFetch — локальное desktop-приложение для управления законными медиазагрузками.
-Оно работает на macOS, Windows и Linux и использует установленные в системе `yt-dlp`
-и FFmpeg.
+Оно работает на macOS, Windows и Linux и использует установленные в системе `yt-dlp`,
+FFmpeg и Deno для актуальной поддержки YouTube.
 
 ## Что получает пользователь
 
@@ -21,7 +21,7 @@ JiveFetch — локальное desktop-приложение для управ�
 
 ## Как это получить
 
-Установите `yt-dlp` и FFmpeg, затем скачайте JiveFetch для своей платформы:
+Установите `yt-dlp`, FFmpeg и Deno, затем скачайте JiveFetch для своей платформы:
 
 - macOS: DMG для Apple Silicon (`arm64`).
 - Windows: EXE или MSI для 64-битной системы (`x64`).

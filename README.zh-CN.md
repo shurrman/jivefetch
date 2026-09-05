@@ -5,7 +5,7 @@
 ![JiveFetch 下载队列](docs/assets/jivefetch-hero.png)
 
 JiveFetch 是一款本地优先的桌面应用，用于管理合法的媒体下载。它可在 macOS、Windows
-与 Linux 上运行，并使用系统中已安装的 `yt-dlp` 和 FFmpeg。
+与 Linux 上运行，并使用系统中已安装的 `yt-dlp`、FFmpeg 和 Deno，以支持当前 YouTube。
 
 ## 你将获得
 
@@ -19,7 +19,7 @@ JiveFetch 是一款本地优先的桌面应用，用于管理合法的媒体下�
 
 ## 如何使用
 
-请先安装 `yt-dlp` 与 FFmpeg，然后下载适用于你的平台的 JiveFetch：
+请先安装 `yt-dlp`、FFmpeg 与 Deno，然后下载适用于你的平台的 JiveFetch：
 
 - macOS：Apple Silicon（`arm64`）DMG。
 - Windows：64 位（`x64`）EXE 或 MSI。

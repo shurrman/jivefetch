@@ -3,8 +3,8 @@
 # 安装 JiveFetch
 
 JiveFetch 可在 macOS、Windows 与 Linux 上运行，但当前预览版不内置下载引擎。
-请先安装 `yt-dlp` 和 FFmpeg，再安装 JiveFetch。受支持的网站会随时间变化，因此请
-及时更新下载引擎。
+请先安装 `yt-dlp`、FFmpeg 和 Deno，再安装 JiveFetch。Deno 是 `yt-dlp` 为当前
+YouTube 支持推荐的 JavaScript 运行时。受支持的网站会随时间变化，因此请及时更新这些工具。
 
 请仅使用 JiveFetch 下载你有权下载的媒体。应用不会绕过 DRM 或其他访问控制。
 
@@ -20,14 +20,14 @@ JiveFetch 可在 macOS、Windows 与 Linux 上运行，但当前预览版不内�
 
 JiveFetch 暂未发布其他架构的可安装软件包。
 
-## 1. 安装 yt-dlp 与 FFmpeg
+## 1. 安装 yt-dlp、FFmpeg 与 Deno
 
 ### macOS
 
 如果尚未安装，请先安装 [Homebrew](https://brew.sh/)，然后打开 Terminal：
 
 ```bash
-brew install yt-dlp ffmpeg
+brew install yt-dlp ffmpeg deno
 ```
 
 ### Windows
@@ -37,6 +37,7 @@ brew install yt-dlp ffmpeg
 ```powershell
 winget install --id yt-dlp.yt-dlp --exact
 winget install --id Gyan.FFmpeg --exact
+winget install --id DenoLand.Deno --exact
 ```
 
 关闭并重新打开 PowerShell，使更新后的 `PATH` 生效。
@@ -51,6 +52,7 @@ sudo apt update
 sudo apt install ffmpeg curl
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /tmp/jivefetch-yt-dlp
 sudo install -m 0755 /tmp/jivefetch-yt-dlp /usr/local/bin/yt-dlp
+curl -fsSL https://deno.land/install.sh | sh
 ```
 
 ### Fedora
@@ -59,17 +61,18 @@ sudo install -m 0755 /tmp/jivefetch-yt-dlp /usr/local/bin/yt-dlp
 sudo dnf install ffmpeg-free curl
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /tmp/jivefetch-yt-dlp
 sudo install -m 0755 /tmp/jivefetch-yt-dlp /usr/local/bin/yt-dlp
+curl -fsSL https://deno.land/install.sh | sh
 ```
 
 ### Arch Linux
 
 ```bash
-sudo pacman -Syu yt-dlp ffmpeg
+sudo pacman -Syu yt-dlp ffmpeg deno
 ```
 
-对于其他 Linux 发行版，请使用其软件包管理器安装 FFmpeg，并按照下方官方说明安装
-`yt-dlp` 二进制文件。两个可执行文件必须位于桌面会话的 `PATH`，或位于
-`/usr/local/bin`、`/usr/bin`。
+对于其他 Linux 发行版，请使用其软件包管理器安装 FFmpeg，按照官方说明安装 `yt-dlp`，
+并按 Deno 官方说明安装 Deno。这些工具必须位于桌面会话的 `PATH`、标准系统路径，
+或 Deno 的默认目录 `$HOME/.deno/bin`。
 
 ## 2. 验证下载引擎
 
@@ -78,9 +81,10 @@ sudo pacman -Syu yt-dlp ffmpeg
 ```text
 yt-dlp --version
 ffmpeg -version
+deno --version
 ```
 
-两个命令都必须输出版本号。如果有命令未找到，请完成对应引擎的安装，然后同时重启
+三个命令都必须输出版本号。如果有命令未找到，请完成对应工具的安装，然后同时重启
 终端和 JiveFetch。
 
 ## 3. 下载并验证 JiveFetch
@@ -128,16 +132,29 @@ chmod +x JiveFetch_*_amd64.AppImage
 
 ## 5. 首次启动
 
-在 JiveFetch 顶部确认 `yt-dlp` 与 FFmpeg 均显示真实版本。如果应用提示未找到某个
+在 JiveFetch 顶部确认已显示应用版本，并且 `yt-dlp` 与 FFmpeg 均显示真实版本。如果应用提示未找到某个
 引擎，请完全关闭 JiveFetch，在新终端中验证该引擎，再重新启动应用。默认下载位置是
 操作系统 Downloads 目录下的 `JiveFetch` 子目录，可在顶部控件中修改。首次启动默认
 使用英语，也可在同一区域切换语言。
 
+### 当前未签名 macOS 构建中的浏览器 Cookie
+
+如果公开 URL 在选择**不使用浏览器 Cookie**时正常，但选择 Chrome 后失败，则表示
+macOS 阻止未签名应用的上下文读取或解密 Chrome Cookie。请在**系统设置 → 隐私与安全性
+→ 完全磁盘访问权限**中添加 `/Applications/JiveFetch.app`，完全退出 JiveFetch 后重新
+打开。如果 macOS 请求允许 JiveFetch 访问钥匙串中的 **Chrome Safe Storage**，请仅对
+已验证 checksum 的应用副本授权。
+
+下载公开媒体时请停用浏览器 Cookie。对于需要认证的媒体，可暂时改用已登录同一账号的
+Firefox。长期解决方案是使用 Developer ID 签名并经过 notarization 的 JiveFetch；当前
+预览构建尚未提供此项。
+
 ## 保持下载引擎为最新版本
 
-- Homebrew：`brew upgrade yt-dlp ffmpeg`
+- Homebrew：`brew upgrade yt-dlp ffmpeg deno`
 - Windows Package Manager：`winget upgrade --id yt-dlp.yt-dlp --exact` 和
   `winget upgrade --id Gyan.FFmpeg --exact`
+- 通过 Windows Package Manager 安装的 Deno：`winget upgrade --id DenoLand.Deno --exact`
 - 官方 standalone `yt-dlp`：`sudo yt-dlp -U`
 - 发行版软件包：通过发行版的软件包管理器进行更新。
 
@@ -146,6 +163,8 @@ chmod +x JiveFetch_*_amd64.AppImage
 ## 官方参考资料
 
 - [`yt-dlp` 安装说明](https://github.com/yt-dlp/yt-dlp/wiki/Installation)
+- [`yt-dlp` 外部 JavaScript 运行时指南](https://github.com/yt-dlp/yt-dlp/wiki/EJS)
+- [Deno 安装说明](https://docs.deno.com/runtime/getting_started/installation/)
 - [FFmpeg 下载与软件包链接](https://ffmpeg.org/download.html)
 - [Homebrew `yt-dlp` formula](https://formulae.brew.sh/formula/yt-dlp)
 - [Homebrew FFmpeg formula](https://formulae.brew.sh/formula/ffmpeg)

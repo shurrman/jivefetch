@@ -53,6 +53,18 @@ open /Applications/JiveFetch.app
 用新的未签名版本替换 JiveFetch 后，请重新执行验证和准备。若应用来自其他来源，或
 checksum 与 release manifest 不一致，请勿运行这些命令。
 
+## 替换应用后的隐私权限
+
+每次 ad-hoc 重新构建都会产生不同的代码身份。替换应用后，macOS 可能不再把先前的
+Downloads 或完全磁盘访问权限决定与新副本匹配。如果仍无法访问，请在**系统设置 →
+隐私与安全性 → 完全磁盘访问权限**中移除旧的 JiveFetch 条目，再次添加
+`/Applications/JiveFetch.app`，完全退出应用后重新打开。如果 macOS 另行询问是否允许
+访问 Downloads 文件夹，请允许。
+
+只有当 `yt-dlp` 实际开始读取并解密 Chrome Cookie 时，钥匙串才会显示
+**Chrome Safe Storage** 提示。停用 Cookie，或尝试在此之前因下载引擎、JavaScript
+运行时、网络或下载目录错误而停止时，都不会出现该提示。
+
 ## 剩余限制
 
 无需 Terminal 准备即可正常双击安装和启动，需要 Developer ID signing 与 Apple

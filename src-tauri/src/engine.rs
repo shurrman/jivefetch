@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     model::{EngineInfo, EngineStatus, MediaFormat, MediaProbe},
-    process_supervisor::{OutputStream, SupervisedProcess},
+    process_supervisor::{OutputStream, ProcessLine, SupervisedProcess},
 };
 
 const PROGRESS_PREFIX: &str = "__JIVEFETCH_PROGRESS__";
@@ -49,6 +49,101 @@ pub enum EngineEvent {
     OutputFile(PathBuf),
 }
 
+#[derive(Debug, Default)]
+pub struct EngineFailureClassifier {
+    browser_cookies_unavailable: bool,
+    authentication_required: bool,
+    media_unavailable: bool,
+    rate_limited: bool,
+    http_forbidden: bool,
+    format_unavailable: bool,
+    network_error: bool,
+    permission_denied: bool,
+}
+
+impl EngineFailureClassifier {
+    pub fn observe(&mut self, stream: OutputStream, line: &str) {
+        if stream != OutputStream::Stderr {
+            return;
+        }
+
+        let line = line.to_ascii_lowercase();
+        let mentions_cookies = line.contains("cookie")
+            || line.contains("find-generic-password")
+            || line.contains("safe storage")
+            || line.contains("keyring");
+        let cookie_access_failure = line.contains("cannot decrypt")
+            || line.contains("could not decrypt")
+            || line.contains("failed to decrypt")
+            || line.contains("unable to copy")
+            || line.contains("could not copy")
+            || line.contains("cannot copy")
+            || line.contains("not found")
+            || line.contains("no key found")
+            || line.contains("permission denied")
+            || line.contains("operation not permitted")
+            || line.contains("failed");
+        self.browser_cookies_unavailable |= mentions_cookies && cookie_access_failure;
+        self.authentication_required |= [
+            "sign in to confirm",
+            "login required",
+            "authentication required",
+            "members-only",
+            "confirm you're not a bot",
+            "confirm you’re not a bot",
+        ]
+        .iter()
+        .any(|marker| line.contains(marker));
+        self.media_unavailable |= [
+            "video unavailable",
+            "this video is unavailable",
+            "private video",
+            "has been removed",
+        ]
+        .iter()
+        .any(|marker| line.contains(marker));
+        self.rate_limited |= line.contains("http error 429") || line.contains("too many requests");
+        self.http_forbidden |= line.contains("http error 403") || line.contains("403: forbidden");
+        self.format_unavailable |= line.contains("requested format is not available");
+        self.network_error |= [
+            "failed to resolve",
+            "network is unreachable",
+            "connection refused",
+            "connection reset",
+            "timed out",
+            "temporary failure in name resolution",
+        ]
+        .iter()
+        .any(|marker| line.contains(marker));
+        self.permission_denied |=
+            line.contains("permission denied") || line.contains("operation not permitted");
+    }
+
+    pub fn error_code(&self, browser_selected: bool) -> Option<&'static str> {
+        if browser_selected && self.browser_cookies_unavailable {
+            Some("browserCookiesUnavailable")
+        } else if self.authentication_required {
+            Some("authenticationRequired")
+        } else if self.media_unavailable {
+            Some("mediaUnavailable")
+        } else if self.rate_limited {
+            Some("rateLimited")
+        } else if self.http_forbidden {
+            Some("httpForbidden")
+        } else if self.format_unavailable {
+            Some("formatUnavailable")
+        } else if self.network_error {
+            Some("networkError")
+        } else if self.permission_denied {
+            Some("permissionDenied")
+        } else if browser_selected {
+            Some("browserCookiesUnavailable")
+        } else {
+            None
+        }
+    }
+}
+
 impl EngineRegistry {
     pub fn discover(output_directory: &Path) -> Self {
         Self {
@@ -59,6 +154,7 @@ impl EngineRegistry {
 
     pub fn status(&self) -> EngineStatus {
         EngineStatus {
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
             ready: self.yt_dlp.is_some() && self.ffmpeg.is_some(),
             yt_dlp: engine_info(self.yt_dlp.as_ref()),
             ffmpeg: engine_info(self.ffmpeg.as_ref()),
@@ -143,7 +239,6 @@ impl EngineRegistry {
             "--ignore-config".to_string(),
             "--no-playlist".to_string(),
             "--no-color".to_string(),
-            "--no-warnings".to_string(),
             "--skip-download".to_string(),
             "--dump-single-json".to_string(),
         ];
@@ -162,15 +257,22 @@ impl EngineRegistry {
         .map_err(|_| "engineSpawnFailed".to_string())?;
         let deadline = Instant::now() + PROBE_TIMEOUT;
         let mut output = String::new();
+        let mut failure = EngineFailureClassifier::default();
 
         loop {
-            collect_probe_output(&process, &mut output);
+            collect_probe_output(&process, &mut output, &mut failure);
             match process.try_wait() {
                 Ok(Some(status)) => {
-                    thread::sleep(Duration::from_millis(50));
-                    collect_probe_output(&process, &mut output);
+                    collect_probe_lines(
+                        process.drain_output_until_closed(Duration::from_millis(250)),
+                        &mut output,
+                        &mut failure,
+                    );
                     if !status.success() {
-                        return Err("probeFailed".to_string());
+                        return Err(failure
+                            .error_code(browser_for_cookies.is_some())
+                            .unwrap_or("probeFailed")
+                            .to_string());
                     }
                     return parse_probe_json(&output);
                 }
@@ -187,8 +289,21 @@ impl EngineRegistry {
     }
 }
 
-fn collect_probe_output(process: &SupervisedProcess, output: &mut String) {
-    for line in process.drain_output() {
+fn collect_probe_output(
+    process: &SupervisedProcess,
+    output: &mut String,
+    failure: &mut EngineFailureClassifier,
+) {
+    collect_probe_lines(process.drain_output(), output, failure);
+}
+
+fn collect_probe_lines(
+    lines: impl IntoIterator<Item = ProcessLine>,
+    output: &mut String,
+    failure: &mut EngineFailureClassifier,
+) {
+    for line in lines {
+        failure.observe(line.stream, &line.text);
         if line.stream == OutputStream::Stdout {
             output.push_str(&line.text);
             output.push('\n');
@@ -455,7 +570,7 @@ mod tests {
 
     use super::{
         concise_version, parse_engine_line, parse_probe_json, verified_output_file, EngineBinary,
-        EngineEvent, EngineRegistry,
+        EngineEvent, EngineFailureClassifier, EngineRegistry,
     };
 
     #[test]
@@ -465,6 +580,46 @@ mod tests {
             "8.1.2"
         );
         assert_eq!(concise_version("2026.07.04"), "2026.07.04");
+    }
+
+    #[test]
+    fn classifies_engine_failures_without_persisting_raw_output() {
+        let mut cookies = EngineFailureClassifier::default();
+        cookies.observe(
+            OutputStream::Stderr,
+            "WARNING: cannot decrypt v10 cookies: no key found",
+        );
+        assert_eq!(cookies.error_code(true), Some("browserCookiesUnavailable"));
+        assert_eq!(cookies.error_code(false), None);
+
+        let mut authentication = EngineFailureClassifier::default();
+        authentication.observe(
+            OutputStream::Stderr,
+            "ERROR: Sign in to confirm you’re not a bot",
+        );
+        assert_eq!(
+            authentication.error_code(false),
+            Some("authenticationRequired")
+        );
+
+        let mut network = EngineFailureClassifier::default();
+        network.observe(
+            OutputStream::Stderr,
+            "ERROR: Failed to resolve 'www.example.com'",
+        );
+        assert_eq!(network.error_code(false), Some("networkError"));
+
+        let mut forbidden = EngineFailureClassifier::default();
+        forbidden.observe(
+            OutputStream::Stderr,
+            "ERROR: unable to download video data: HTTP Error 403: Forbidden",
+        );
+        assert_eq!(forbidden.error_code(false), Some("httpForbidden"));
+
+        assert_eq!(
+            EngineFailureClassifier::default().error_code(true),
+            Some("browserCookiesUnavailable")
+        );
     }
 
     #[test]

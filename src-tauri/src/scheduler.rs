@@ -11,9 +11,12 @@ use std::{
 };
 
 use crate::{
-    engine::{parse_engine_line, verified_output_file, EngineEvent, EngineRegistry},
+    engine::{
+        parse_engine_line, verified_output_file, EngineEvent, EngineFailureClassifier,
+        EngineRegistry,
+    },
     model::{AppSettings, AttemptReservation, ControlIntent, EngineStatus, MediaProbe, QueueTask},
-    process_supervisor::SupervisedProcess,
+    process_supervisor::{ProcessLine, SupervisedProcess},
     storage,
 };
 
@@ -48,7 +51,7 @@ impl SchedulerRuntime {
         let configured_output = PathBuf::from(&settings.output_directory);
         fs::create_dir_all(&configured_output).map_err(|_| "outputDirectoryError".to_string())?;
         reconcile_completed_output_sizes(&connection, &configured_output)?;
-        let engines = EngineRegistry::discover(&configured_output);
+        let engines = EngineRegistry::discover(&engine_probe_directory(&database_path));
         Ok(Self {
             inner: Arc::new(RuntimeInner {
                 database_path,
@@ -306,9 +309,16 @@ fn run_attempt(
     let mut exit_success = false;
     let mut process_error = false;
     let mut storage_error = false;
+    let mut failure = EngineFailureClassifier::default();
 
     loop {
-        drain_engine_events(runtime, reservation, &process, &mut final_output);
+        drain_engine_events(
+            runtime,
+            reservation,
+            &process,
+            &mut final_output,
+            &mut failure,
+        );
 
         if let Ok(intent) = control_receiver.try_recv() {
             control = Some(intent);
@@ -322,8 +332,13 @@ fn run_attempt(
         match process.try_wait() {
             Ok(Some(status)) => {
                 exit_success = status.success();
-                thread::sleep(Duration::from_millis(50));
-                drain_engine_events(runtime, reservation, &process, &mut final_output);
+                apply_engine_lines(
+                    runtime,
+                    reservation,
+                    process.drain_output_until_closed(Duration::from_millis(250)),
+                    &mut final_output,
+                    &mut failure,
+                );
                 break;
             }
             Ok(None) => thread::sleep(Duration::from_millis(100)),
@@ -353,7 +368,11 @@ fn run_attempt(
     } else if exit_success && verified_output.is_none() {
         Some("outputMissing")
     } else if !exit_success {
-        Some("engineFailed")
+        Some(
+            failure
+                .error_code(settings.browser_for_cookies.is_some())
+                .unwrap_or("engineFailed"),
+        )
     } else {
         None
     };
@@ -420,13 +439,39 @@ fn per_attempt_speed_limit(settings: &AppSettings) -> Option<u64> {
         .map(|limit| (limit / settings.concurrency as u64).max(1))
 }
 
+fn engine_probe_directory(database_path: &Path) -> PathBuf {
+    database_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .map(Path::to_path_buf)
+        .unwrap_or_else(std::env::temp_dir)
+}
+
 fn drain_engine_events(
     runtime: &SchedulerRuntime,
     reservation: &AttemptReservation,
     process: &SupervisedProcess,
     final_output: &mut Option<PathBuf>,
+    failure: &mut EngineFailureClassifier,
 ) {
-    for line in process.drain_output() {
+    apply_engine_lines(
+        runtime,
+        reservation,
+        process.drain_output(),
+        final_output,
+        failure,
+    );
+}
+
+fn apply_engine_lines(
+    runtime: &SchedulerRuntime,
+    reservation: &AttemptReservation,
+    lines: impl IntoIterator<Item = ProcessLine>,
+    final_output: &mut Option<PathBuf>,
+    failure: &mut EngineFailureClassifier,
+) {
+    for line in lines {
+        failure.observe(line.stream, &line.text);
         match parse_engine_line(line.stream, &line.text) {
             Some(EngineEvent::Progress {
                 downloaded_bytes,
@@ -458,9 +503,12 @@ fn drain_engine_events(
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, path::PathBuf};
 
-    use super::{per_attempt_speed_limit, reconcile_completed_output_sizes, validate_settings};
+    use super::{
+        engine_probe_directory, per_attempt_speed_limit, reconcile_completed_output_sizes,
+        validate_settings,
+    };
     use crate::{model::AppSettings, storage};
 
     fn settings() -> AppSettings {
@@ -502,6 +550,15 @@ mod tests {
         assert_eq!(
             validate_settings(&invalid).unwrap_err(),
             "invalidOutputDirectory"
+        );
+    }
+
+    #[test]
+    fn probes_engines_from_app_data_instead_of_the_protected_download_folder() {
+        let database_path = PathBuf::from("app-data").join("jivefetch.sqlite3");
+        assert_eq!(
+            engine_probe_directory(&database_path),
+            PathBuf::from("app-data")
         );
     }
 

@@ -218,7 +218,7 @@ failure, and continue without losing the queue or accidentally duplicating work.
   and Waiting for retry as different phases.
 - Active queue snapshots refresh at least every five seconds and display progress,
   state, speed, ETA, downloaded bytes, and estimated total bytes per task.
-- Engine versions, concurrency, speed, theme, language, and output-directory controls
+- Application and engine versions, concurrency, speed, theme, language, and output-directory controls
   remain visible in the top settings region; implementation-only storage cards are absent.
 
 ## 6. MVP boundary

@@ -5,7 +5,8 @@
 ![JiveFetch download queue](docs/assets/jivefetch-hero.png)
 
 JiveFetch is a local-first desktop application for managing lawful media downloads.
-It runs on macOS, Windows, and Linux and uses locally installed `yt-dlp` and FFmpeg.
+It runs on macOS, Windows, and Linux and uses locally installed `yt-dlp`, FFmpeg, and
+Deno for current YouTube support.
 
 ## What you get
 
@@ -20,7 +21,7 @@ It runs on macOS, Windows, and Linux and uses locally installed `yt-dlp` and FFm
 
 ## How to get it
 
-Install both `yt-dlp` and FFmpeg, then download JiveFetch for your platform:
+Install `yt-dlp`, FFmpeg, and Deno, then download JiveFetch for your platform:
 
 - macOS: Apple Silicon (`arm64`) DMG.
 - Windows: 64-bit (`x64`) EXE or MSI.

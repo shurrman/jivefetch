@@ -50,6 +50,14 @@ const backendErrorKeys: Record<string, TranslationKey> = {
   ffmpegMissing: "ffmpegMissing",
   engineSpawnFailed: "engineSpawnFailed",
   engineFailed: "engineFailed",
+  browserCookiesUnavailable: "browserCookiesUnavailable",
+  authenticationRequired: "authenticationRequired",
+  mediaUnavailable: "mediaUnavailable",
+  rateLimited: "rateLimited",
+  httpForbidden: "httpForbidden",
+  formatUnavailable: "formatUnavailable",
+  networkError: "networkError",
+  permissionDenied: "permissionDenied",
   outputMissing: "outputMissing",
   processSupervisorError: "processSupervisorError",
   schedulerError: "schedulerError",
@@ -394,7 +402,8 @@ export default function App() {
             <span>{t("tagline")}</span>
           </div>
         </div>
-        <div className="engine-summary" aria-label={t("engineVersions")}>
+        <div className="engine-summary" aria-label={t("versionSummary")}>
+          <span>JiveFetch <strong>{engines?.appVersion ?? "—"}</strong></span>
           <span>yt-dlp <strong>{versionLabel(engines?.ytDlp.version ?? null, engines?.ytDlp.available ?? false, t("available"), t("missing"))}</strong></span>
           <span>FFmpeg <strong>{versionLabel(engines?.ffmpeg.version ?? null, engines?.ffmpeg.available ?? false, t("available"), t("missing"))}</strong></span>
         </div>

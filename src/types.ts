@@ -36,6 +36,7 @@ export interface EngineInfo {
 }
 
 export interface EngineStatus {
+  appVersion: string;
   ready: boolean;
   ytDlp: EngineInfo;
   ffmpeg: EngineInfo;

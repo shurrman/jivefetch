@@ -6,11 +6,15 @@ This file records validated project-level changes and before/after metrics.
 
 ## Unreleased
 
+No changes yet.
+
+## 0.3.1 - 2026-09-05
+
 ### Added
 
 - Added a complete installation guide for macOS, Windows, Ubuntu/Debian, Fedora,
   Arch Linux, AppImage, and DEB in English, Russian, and Simplified Chinese. It covers
-  installing and verifying `yt-dlp` and FFmpeg, matching JiveFetch checksums, first
+  installing and verifying `yt-dlp`, FFmpeg, and Deno, matching JiveFetch checksums, first
   launch, and engine updates.
 - Made the cross-platform engine prerequisite and installation-guide link prominent at
   the beginning of every README translation.
@@ -18,6 +22,8 @@ This file records validated project-level changes and before/after metrics.
   progress states, media formats, and cross-device use without third-party branding.
 - Reworked every README into a user-first sequence: what JiveFetch provides, followed
   by the requirements, platform packages, and installation links.
+- Added the JiveFetch application version beside the `yt-dlp` and FFmpeg versions in
+  the top status region.
 
 ### Fixed
 
@@ -26,15 +32,32 @@ This file records validated project-level changes and before/after metrics.
   multi-release listing. This keeps language jumps functional and Assets accessible.
 - Made the unsigned macOS installation guide version-independent so it no longer names
   an obsolete DMG or checksum after a newer release becomes Latest.
+- Replaced generic `yt-dlp` failures with localized, actionable error classes for
+  browser-cookie access, authentication, unavailable media, rate limits, formats,
+  network failures, and filesystem permissions without persisting raw engine output.
+- Documented the Full Disk Access and Keychain steps required when the current unsigned
+  macOS build cannot read Chrome cookies, plus safe public-media and Firefox fallbacks.
+- Moved engine version probes from the protected Downloads folder to the application's
+  own data directory, preventing a macOS TCC startup race that could report Homebrew
+  `yt-dlp` as missing while FFmpeg was found.
+- Added standard package-manager directories and Deno's per-user directory to the
+  sanitized downloader `PATH`. Finder-launched macOS builds can now expose Homebrew
+  Deno to `yt-dlp`, preventing YouTube media requests from failing with HTTP 403 after
+  metadata probing succeeds.
+- Classified HTTP 403 separately with localized guidance to update `yt-dlp`, install
+  Deno, or enable browser cookies for restricted media.
 
 ### Metrics
 
-- Documentation: 48 to 51 tracked Markdown files and 16 to 17 validated
+- Documentation: 48 to 54 tracked Markdown files and 16 to 18 validated
   EN/RU/Simplified Chinese sets.
 - Combined README length: 389 to 93 lines; architecture and development details remain
   in the dedicated documents instead of the product entry page.
 - Release navigation: 3 ambiguous listing-relative anchors to 3 explicit tag-page
   anchors, validated by the release-note checker.
+- Header version indicators: 2 engine versions to 1 application plus 2 engine versions.
+- User-facing engine failure classes: 1 generic fallback to 8 actionable localized
+  classes plus the generic fallback; regular Rust tests: 19 to 22.
 
 ## 0.3.0 - 2026-09-03
 

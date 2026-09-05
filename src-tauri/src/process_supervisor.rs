@@ -1,8 +1,10 @@
 use std::{
+    env,
+    ffi::OsString,
     io::{self, Read},
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
-    sync::mpsc::{self, Receiver, SyncSender},
+    sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender},
     thread,
     time::{Duration, Instant},
 };
@@ -56,16 +58,22 @@ impl SupervisedProcess {
             .stderr(Stdio::piped())
             .env_clear();
 
+        command.env("PATH", child_path()?);
+        for key in ["HOME", "USERPROFILE", "TMPDIR", "TEMP", "TMP", "LANG"] {
+            if let Some(value) = env::var_os(key) {
+                command.env(key, value);
+            }
+        }
+        #[cfg(windows)]
         for key in [
-            "PATH",
-            "HOME",
-            "USERPROFILE",
-            "TMPDIR",
-            "TEMP",
-            "TMP",
-            "LANG",
+            "APPDATA",
+            "LOCALAPPDATA",
+            "PROGRAMDATA",
+            "SYSTEMROOT",
+            "WINDIR",
+            "PATHEXT",
         ] {
-            if let Some(value) = std::env::var_os(key) {
+            if let Some(value) = env::var_os(key) {
                 command.env(key, value);
             }
         }
@@ -95,6 +103,18 @@ impl SupervisedProcess {
 
     pub fn drain_output(&self) -> impl Iterator<Item = ProcessLine> + '_ {
         self.output.try_iter()
+    }
+
+    pub fn drain_output_until_closed(&self, timeout: Duration) -> Vec<ProcessLine> {
+        let deadline = Instant::now() + timeout;
+        let mut lines = Vec::new();
+        while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+            match self.output.recv_timeout(remaining) {
+                Ok(line) => lines.push(line),
+                Err(RecvTimeoutError::Disconnected | RecvTimeoutError::Timeout) => break,
+            }
+        }
+        lines
     }
 
     pub fn terminate_owned_tree(&mut self, grace: Duration) -> io::Result<ExitStatus> {
@@ -133,6 +153,50 @@ impl SupervisedProcess {
             Err(error) => Err(error),
         }
     }
+}
+
+fn child_path() -> io::Result<OsString> {
+    let mut directories = env::var_os("PATH")
+        .map(|value| env::split_paths(&value).collect::<Vec<_>>())
+        .unwrap_or_default();
+
+    #[cfg(target_os = "macos")]
+    let standard_directories = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+    ];
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let standard_directories = ["/usr/local/bin", "/usr/bin", "/bin"];
+    #[cfg(windows)]
+    let standard_directories: [&str; 0] = [];
+
+    for directory in standard_directories {
+        let directory = PathBuf::from(directory);
+        if !directories.contains(&directory) {
+            directories.push(directory);
+        }
+    }
+
+    #[cfg(unix)]
+    if let Some(home) = env::var_os("HOME") {
+        let directory = PathBuf::from(home).join(".deno/bin");
+        if !directories.contains(&directory) {
+            directories.push(directory);
+        }
+    }
+    #[cfg(windows)]
+    if let Some(profile) = env::var_os("USERPROFILE") {
+        let directory = PathBuf::from(profile).join(".deno/bin");
+        if !directories.contains(&directory) {
+            directories.push(directory);
+        }
+    }
+
+    env::join_paths(directories).map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))
 }
 
 impl Drop for SupervisedProcess {
@@ -191,7 +255,7 @@ mod tests {
     use std::io::Cursor;
     use std::sync::mpsc;
 
-    use super::{spawn_reader, OutputStream, DEFAULT_MAX_LINE_BYTES};
+    use super::{child_path, spawn_reader, OutputStream, DEFAULT_MAX_LINE_BYTES};
 
     #[test]
     fn reader_bounds_untrusted_lines() {
@@ -205,5 +269,15 @@ mod tests {
         );
         let line = receiver.recv().unwrap();
         assert_eq!(line.text.len(), DEFAULT_MAX_LINE_BYTES);
+    }
+
+    #[test]
+    fn child_path_contains_platform_tool_directories() {
+        let directories = std::env::split_paths(&child_path().unwrap()).collect::<Vec<_>>();
+
+        #[cfg(target_os = "macos")]
+        assert!(directories.contains(&std::path::PathBuf::from("/opt/homebrew/bin")));
+        #[cfg(unix)]
+        assert!(directories.contains(&std::path::PathBuf::from("/usr/bin")));
     }
 }

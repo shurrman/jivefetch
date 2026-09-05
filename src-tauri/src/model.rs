@@ -29,6 +29,7 @@ pub struct EngineInfo {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineStatus {
+    pub app_version: String,
     pub ready: bool,
     pub yt_dlp: EngineInfo,
     pub ffmpeg: EngineInfo,
