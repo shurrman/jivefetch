@@ -38,6 +38,8 @@ This file records validated project-level changes and before/after metrics.
   work stays below 100%, and only verified completion reaches 100%.
 - Completed tasks are green and offer Open only while their verified final file still
   exists; a removed or empty file is shown as an output error on the next queue refresh.
+- Made the legacy-settings migration test use a native temporary absolute path, so the
+  validation contract is exercised consistently on Windows, macOS, and Linux.
 
 ### Metrics
 

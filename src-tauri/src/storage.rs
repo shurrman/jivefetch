@@ -669,7 +669,7 @@ fn settings_schema_v3_sql() -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use rusqlite::Connection;
+    use rusqlite::{params, Connection};
 
     use super::{
         apply_action, insert_task, insert_task_with_format, load_settings, open_database,
@@ -752,8 +752,14 @@ mod tests {
                        speed_limit_bytes_per_second INTEGER,
                        output_directory TEXT NOT NULL
                      );
-                     INSERT INTO app_settings VALUES (1, 4, 524288, '/tmp/JiveFetch');
                      PRAGMA user_version = 3;",
+                )
+                .unwrap();
+            let legacy_output = directory.path().join("JiveFetch");
+            connection
+                .execute(
+                    "INSERT INTO app_settings VALUES (1, 4, 524288, ?1)",
+                    params![legacy_output.to_string_lossy().into_owned()],
                 )
                 .unwrap();
         }
@@ -763,7 +769,10 @@ mod tests {
         assert_eq!(settings.concurrency, 4);
         assert_eq!(settings.speed_limit_bytes_per_second, Some(512 * 1024));
         assert_eq!(settings.browser_for_cookies, None);
-        assert_eq!(settings.output_directory, "/tmp/JiveFetch");
+        assert_eq!(
+            settings.output_directory,
+            directory.path().join("JiveFetch").to_string_lossy()
+        );
     }
 
     #[test]

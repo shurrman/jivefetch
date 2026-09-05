@@ -34,6 +34,8 @@
   单调聚合，active work 保持低于 100%，只有验证完成才达到 100%。
 - Completed 任务只有在最终文件仍真实存在时才显示绿色并提供“打开”；文件被删除或为空
   时，会在下一次 queue refresh 显示 output error。
+- Legacy-settings migration test 改用平台原生的临时绝对路径，使 validation contract 在
+  Windows、macOS 与 Linux 上得到一致验证。
 
 ### 指标
 
