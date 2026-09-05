@@ -273,7 +273,11 @@ mod tests {
 
     #[test]
     fn child_path_contains_platform_tool_directories() {
+        #[cfg(unix)]
         let directories = std::env::split_paths(&child_path().unwrap()).collect::<Vec<_>>();
+
+        #[cfg(windows)]
+        assert!(child_path().is_some());
 
         #[cfg(target_os = "macos")]
         assert!(directories.contains(&std::path::PathBuf::from("/opt/homebrew/bin")));
