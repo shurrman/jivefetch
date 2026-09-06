@@ -433,7 +433,7 @@ fn run_attempt(
     let mut process_error = false;
     let mut storage_error = false;
     let mut failure = EngineFailureClassifier::default();
-    let mut progress = ProgressAccumulator::default();
+    let mut progress = ProgressAccumulator::from_reservation(reservation);
 
     loop {
         drain_engine_events(
@@ -646,6 +646,10 @@ fn apply_engine_lines(
 struct ProgressAccumulator {
     components: HashMap<String, ComponentProgress>,
     maximum_progress: f64,
+    checkpoint_downloaded_bytes: i64,
+    checkpoint_total_bytes: Option<i64>,
+    resume_offsets: HashMap<String, i64>,
+    is_resume: bool,
 }
 
 #[derive(Debug, Default)]
@@ -665,6 +669,18 @@ struct AggregatedProgress {
 }
 
 impl ProgressAccumulator {
+    fn from_reservation(reservation: &AttemptReservation) -> Self {
+        Self {
+            maximum_progress: reservation.checkpoint_progress.clamp(0.0, 0.99),
+            checkpoint_downloaded_bytes: reservation.checkpoint_downloaded_bytes.max(0),
+            checkpoint_total_bytes: reservation
+                .checkpoint_total_bytes
+                .filter(|total| *total > 0),
+            is_resume: reservation.is_resume,
+            ..Self::default()
+        }
+    }
+
     fn register_plan(&mut self, components: Vec<crate::engine::DownloadComponent>) {
         for component in components {
             let entry = self.components.entry(component.id).or_default();
@@ -681,14 +697,31 @@ impl ProgressAccumulator {
         speed: Option<f64>,
         component_eta: Option<i64>,
     ) -> AggregatedProgress {
-        let component = self.components.entry(component_id).or_default();
-        component.downloaded_bytes = component.downloaded_bytes.max(downloaded_bytes.max(0));
+        let observed_downloaded_bytes = downloaded_bytes.max(0);
+        let component = self.components.entry(component_id.clone()).or_default();
+        component.downloaded_bytes = component.downloaded_bytes.max(observed_downloaded_bytes);
         component.total_bytes = total_bytes.or(component.total_bytes);
 
-        let downloaded_bytes = self.components.values().fold(0_i64, |total, component| {
-            total.saturating_add(component.downloaded_bytes)
-        });
-        let total_bytes = self
+        if self.is_resume && self.checkpoint_downloaded_bytes > 0 {
+            self.resume_offsets
+                .entry(component_id)
+                .or_insert(observed_downloaded_bytes);
+        }
+
+        let observed_total = self
+            .components
+            .iter()
+            .fold(0_i64, |total, (id, component)| {
+                let offset = self.resume_offsets.get(id).copied().unwrap_or(0);
+                total.saturating_add(component.downloaded_bytes.saturating_sub(offset))
+            });
+        let mut downloaded_bytes = if self.is_resume {
+            self.checkpoint_downloaded_bytes
+                .saturating_add(observed_total)
+        } else {
+            observed_total
+        };
+        let planned_total = self
             .components
             .values()
             .map(|component| component.total_bytes)
@@ -696,6 +729,15 @@ impl ProgressAccumulator {
                 component.map(|value| total.saturating_add(value))
             })
             .filter(|total| *total > 0);
+        let total_bytes = match (planned_total, self.checkpoint_total_bytes) {
+            (Some(planned), Some(checkpoint)) => Some(planned.max(checkpoint)),
+            (Some(planned), None) => Some(planned),
+            (None, Some(checkpoint)) => Some(checkpoint),
+            (None, None) => None,
+        };
+        if let Some(total) = total_bytes {
+            downloaded_bytes = downloaded_bytes.min(total);
+        }
         let measured_progress = total_bytes
             .map(|total| downloaded_bytes as f64 / total as f64)
             .unwrap_or(self.maximum_progress);
@@ -897,6 +939,58 @@ mod tests {
         assert_eq!(audio.total_bytes, Some(1000));
         assert_eq!(audio.eta, Some(8));
         assert_eq!(audio.stage, "audio");
+    }
+
+    #[test]
+    fn resumed_attempt_keeps_its_checkpoint_then_adds_only_new_bytes() {
+        let reservation = crate::model::AttemptReservation {
+            task_id: "task".to_string(),
+            attempt_id: "attempt".to_string(),
+            url: "https://example.com/video".to_string(),
+            format_selector: None,
+            checkpoint_progress: 0.7,
+            checkpoint_downloaded_bytes: 700,
+            checkpoint_total_bytes: Some(1_000),
+            is_resume: true,
+        };
+        let mut progress = ProgressAccumulator::from_reservation(&reservation);
+        progress.register_plan(vec![
+            DownloadComponent {
+                id: "video".to_string(),
+                stage: "video".to_string(),
+                total_bytes: Some(800),
+            },
+            DownloadComponent {
+                id: "audio".to_string(),
+                stage: "audio".to_string(),
+                total_bytes: Some(200),
+            },
+        ]);
+
+        let first_observation = progress.observe(
+            "audio".to_string(),
+            "audio".to_string(),
+            100,
+            Some(200),
+            Some(20.0),
+            Some(5),
+        );
+        assert_eq!(first_observation.progress, 0.7);
+        assert_eq!(first_observation.downloaded_bytes, 700);
+        assert_eq!(first_observation.total_bytes, Some(1_000));
+
+        let advanced = progress.observe(
+            "audio".to_string(),
+            "audio".to_string(),
+            120,
+            Some(200),
+            Some(20.0),
+            Some(4),
+        );
+        assert_eq!(advanced.progress, 0.72);
+        assert_eq!(advanced.downloaded_bytes, 720);
+        assert_eq!(advanced.total_bytes, Some(1_000));
+        assert_eq!(advanced.eta, Some(14));
     }
 
     #[test]

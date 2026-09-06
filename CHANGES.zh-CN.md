@@ -4,6 +4,23 @@
 
 ## 尚未发布
 
+## 0.4.1 - 2026-09-06
+
+### 修复
+
+- Resume 时，任务卡不再在 `yt-dlp` 已重新连接兼容 partial 文件期间回到 0%。Reservation
+  会保留 durable progress checkpoint；收到新的引擎数据前，UI 显示本地化的“正在准备继续下载”。
+- 对继续的组件，首次观察到的 byte 位置成为 attempt-local baseline，之后只把新增量加入
+  checkpoint，从而同时避免可见回退与重复计算此前下载的 bytes。
+
+### 指标
+
+- 常规 Rust 测试：从 26 增加到 28 个，包括 durable Pause/Resume checkpoint 保留测试，
+  以及继续后的多组件聚合测试。
+- Resume 显示状态：从重置 3 个 progress 字段改为保留 3 个 checkpoint 字段；每种应用
+  语言的阶段标签从 4 个增加到 5 个。
+- SQLite schema 保持版本 6；现有队列无需 migration。
+
 ## 0.4.0 - 2026-09-05
 
 ### 新增

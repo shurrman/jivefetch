@@ -93,6 +93,7 @@ const removableStates = new Set<TaskState>([
 ]);
 const failedStates = new Set<TaskState>(["failed", "interrupted"]);
 const downloadStageKeys: Record<string, TranslationKey> = {
+  resuming: "preparingToResume",
   video: "downloadingVideo",
   audio: "downloadingAudio",
   media: "downloadingMedia",
@@ -679,7 +680,7 @@ export default function App() {
                         <span>{t("speed")}: {task.speed ? `${formatBytes(task.speed, locale)}/s` : "—"}</span>
                         <span>{t("etaLabel")}: {task.eta !== null ? formatDuration(task.eta) : "—"}</span>
                       </div>
-                      {taskStage && ["downloading", "postprocessing"].includes(task.state) ? (
+                      {taskStage && ["starting", "downloading", "postprocessing"].includes(task.state) ? (
                         <div className="task-stage">{t(taskStage)}</div>
                       ) : null}
                       {task.outputPath ? <div className="task-output">{task.outputPath}</div> : null}

@@ -6,6 +6,25 @@ This file records validated project-level changes and before/after metrics.
 
 ## Unreleased
 
+## 0.4.1 - 2026-09-06
+
+### Fixed
+
+- Resume no longer resets a task card to 0% while `yt-dlp` is already reconnecting to
+  compatible partial files. The reservation preserves the durable progress checkpoint,
+  and the UI shows a localized Preparing to resume stage until fresh engine data arrives.
+- Resumed component progress uses the first observed byte position as an attempt-local
+  baseline and adds only later deltas, preventing both a visible rollback and double
+  counting of previously downloaded bytes.
+
+### Metrics
+
+- Regular Rust suite: 26 to 28 tests, including checkpoint preservation through the
+  durable Pause/Resume transition and resumed multi-component aggregation.
+- Resume display state: 3 reset progress fields to 3 preserved checkpoint fields; stage
+  labels: 4 to 5 in each application language.
+- SQLite schema remains version 6; existing queues require no migration.
+
 ## 0.4.0 - 2026-09-05
 
 ### Added

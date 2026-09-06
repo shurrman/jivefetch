@@ -135,6 +135,11 @@ allowlist、工作目录、预期 artifacts 和 capabilities，不含 shell synt
 进行类型化。Adapter 发送安全的 component plan 与带组件 ID 的 progress；scheduler
 把视频/音频字节聚合为单调递增的总进度，并只让验证后的最终文件达到 100%。
 
+`0.4.1` 会使用任务的 durable checkpoint 初始化继续 attempt 的 accumulator。每个继续
+组件首次观察到的位置成为该 attempt 的本地 baseline，只有后续 byte 增量才推进 checkpoint。
+这样无需更改 SQLite schema，就能在进程 attempt 之间保持真实且单调的 UI progress，
+也不会重复计算兼容 partial 文件中已有的 bytes。
+
 ## 8. 进程监管
 
 有效工作前，macOS/Linux attempt 创建新 session/process group；Windows 使用

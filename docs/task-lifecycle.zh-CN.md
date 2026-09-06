@@ -79,7 +79,7 @@ Partial 重用要求 destination/template/source/format/engine fingerprint 兼�
 ## 9. Progress 与 checkpoints
 
 UI progress 合并，checkpoint 只在有界间隔和 phase boundary 持久化；单个组件的
-100% progress 不等于完成。`0.4.0` UI 每五秒请求一次 authoritative snapshot。
+100% progress 不等于完成。UI 每五秒请求一次 authoritative snapshot。
 `yt-dlp` 的独立视频与音频组件事件会聚合为单调递增的任务总字节数、progress 与 ETA；
 副标题说明当前正在下载视频、音频或合并最终文件。下载与合并期间的 progress 保持在
 100% 以下；只有经过验证的最终文件才会显示 100% 和绿色。
@@ -88,6 +88,11 @@ UI progress 合并，checkpoint 只在有界间隔和 phase boundary 持久化�
 路径，再交给操作系统默认应用；webview 不能提供任意路径。Startup 仍会用同一个验证
 文件修复旧 completed 任务的零字节指标。右键任务操作继续映射到 revision 检查的
 Start/Stop/Pause/Remove 转换；Copy URL 不改变状态。
+
+从 `0.4.1` 开始，继续任务的 reservation 会保留最后确认的 progress、已下载 bytes
+与总大小估算。收到第一个新的 engine progress event 前，UI 显示本地化的“正在准备继续下载”。
+新 attempt 把每个组件首次观察到的 byte 位置作为 baseline，只把后续增量加入已持久化的
+checkpoint，因此复用的 partial bytes 既不会消失，也不会被重复计算。
 
 ## 10. 必须测试的 concurrency races
 

@@ -301,7 +301,9 @@ pub fn reserve_next_attempt(
     let transaction = connection.transaction()?;
     let candidate = transaction
         .query_row(
-            "SELECT id, url, format_selector FROM tasks WHERE state = 'queued'
+            "SELECT id, url, format_selector, progress, downloaded_bytes,
+                    total_bytes, attempt_count
+             FROM tasks WHERE state = 'queued'
              ORDER BY created_at ASC, id ASC LIMIT 1",
             [],
             |row| {
@@ -309,22 +311,36 @@ pub fn reserve_next_attempt(
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, Option<String>>(2)?,
+                    row.get::<_, f64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<i64>>(5)?,
+                    row.get::<_, i64>(6)?,
                 ))
             },
         )
         .optional()?;
-    let Some((task_id, url, format_selector)) = candidate else {
+    let Some((
+        task_id,
+        url,
+        format_selector,
+        checkpoint_progress,
+        checkpoint_downloaded_bytes,
+        checkpoint_total_bytes,
+        attempt_count,
+    )) = candidate
+    else {
         return Ok(None);
     };
+    let is_resume = attempt_count > 0;
+    let download_stage = is_resume.then_some("resuming");
     let attempt_id = random_id(&transaction)?;
     let changed = transaction.execute(
         "UPDATE tasks SET state = 'starting', revision = revision + 1,
-                    updated_at = ?1, progress = 0, downloaded_bytes = 0,
-                    total_bytes = NULL, speed = NULL, eta = NULL,
-                    download_stage = NULL, output_path = NULL, error_code = NULL,
+                    updated_at = ?1, speed = NULL, eta = NULL,
+                    download_stage = ?2, output_path = NULL, error_code = NULL,
                     attempt_count = attempt_count + 1
-             WHERE id = ?2 AND state = 'queued'",
-        params![timestamp, task_id],
+             WHERE id = ?3 AND state = 'queued'",
+        params![timestamp, download_stage, task_id],
     )?;
     if changed != 1 {
         return Ok(None);
@@ -339,6 +355,10 @@ pub fn reserve_next_attempt(
         attempt_id,
         url,
         format_selector,
+        checkpoint_progress,
+        checkpoint_downloaded_bytes,
+        checkpoint_total_bytes,
+        is_resume,
     }))
 }
 
@@ -849,6 +869,52 @@ mod tests {
             apply_action(&mut connection, &task.id, "resume", paused.task.revision).unwrap();
         assert_eq!(queued.task.state, "queued");
         assert!(queued.should_dispatch);
+    }
+
+    #[test]
+    fn resume_reservation_preserves_the_last_confirmed_checkpoint() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("queue.sqlite3");
+        let mut connection = open_database(&path).unwrap();
+        let task = insert_task(&connection, "https://example.com/a").unwrap();
+        let first = reserve_next_attempt(&mut connection).unwrap().unwrap();
+        super::mark_started(&connection, &first, 42, "test-engine").unwrap();
+        super::update_progress(
+            &connection,
+            &task.id,
+            &super::ProgressUpdate {
+                progress: 0.7,
+                downloaded_bytes: 700,
+                total_bytes: Some(1_000),
+                speed: Some(100.0),
+                eta: Some(3),
+                download_stage: "video",
+            },
+        )
+        .unwrap();
+
+        let downloading = super::load_task(&connection, &task.id).unwrap();
+        let pausing =
+            apply_action(&mut connection, &task.id, "pause", downloading.revision).unwrap();
+        super::finalize_attempt(&mut connection, &first, pausing.control, false, None).unwrap();
+        let paused = super::load_task(&connection, &task.id).unwrap();
+        apply_action(&mut connection, &task.id, "resume", paused.revision).unwrap();
+
+        let resumed = reserve_next_attempt(&mut connection).unwrap().unwrap();
+        assert!(resumed.is_resume);
+        assert_eq!(resumed.checkpoint_progress, 0.7);
+        assert_eq!(resumed.checkpoint_downloaded_bytes, 700);
+        assert_eq!(resumed.checkpoint_total_bytes, Some(1_000));
+
+        let starting = super::load_task(&connection, &task.id).unwrap();
+        assert_eq!(starting.state, "starting");
+        assert_eq!(starting.progress, 0.7);
+        assert_eq!(starting.downloaded_bytes, 700);
+        assert_eq!(starting.total_bytes, Some(1_000));
+        assert_eq!(starting.speed, None);
+        assert_eq!(starting.eta, None);
+        assert_eq!(starting.download_stage.as_deref(), Some("resuming"));
+        assert_eq!(starting.attempt_count, 2);
     }
 
     #[test]

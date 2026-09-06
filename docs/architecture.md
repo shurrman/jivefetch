@@ -204,6 +204,12 @@ plans cross the scheduler boundary. The adapter also emits a safe component plan
 component-tagged progress; the scheduler aggregates video and audio bytes into one
 monotonic overall progress value and reserves 100% for a verified final file.
 
+In `0.4.1`, a resumed attempt seeds that accumulator from the durable task checkpoint.
+The first observed position of each resumed component becomes its attempt-local baseline;
+only subsequent byte deltas advance the checkpoint. This preserves truthful monotonic UI
+progress across process attempts without changing the SQLite schema or double-counting
+bytes already present in compatible partial files.
+
 ## 8. Process supervisor
 
 Every attempt receives an ownership container before useful work begins:

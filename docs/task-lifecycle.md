@@ -161,11 +161,17 @@ them for UI display. Durable checkpoints are stored at phase boundaries and a bo
 interval, carrying downloaded bytes, total estimate, speed, ETA, fragment counts,
 and last safe event time.
 
-The `0.4.0` UI requests an authoritative queue snapshot every five seconds and keeps
+The UI requests an authoritative queue snapshot every five seconds and keeps
 manual refresh available. Video-only and audio-only `yt-dlp` component events are
 aggregated into one monotonic task-wide byte total, progress ratio, and ETA. The current
 stage explains whether video, audio, or final merging is active. Downloading and merging
 are capped below 100%; only a verified completed output reaches 100% and green.
+
+From `0.4.1`, reserving a resumed attempt preserves the last confirmed task progress,
+downloaded bytes, and total estimate. The UI shows a localized Preparing to resume stage
+until the first new engine progress event. The new attempt records each component's first
+observed byte count as a baseline and adds only later deltas to the persisted checkpoint,
+so reused partial bytes are neither hidden nor counted twice.
 
 A checkpoint is informational; files and engine resume behavior remain the source of
 truth for resumability. A 100% progress event alone never marks a task completed.

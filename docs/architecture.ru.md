@@ -160,6 +160,12 @@ boundary и browser-cookie selector, что и загрузка. React полу�
 scheduler агрегирует video/audio bytes в один монотонный общий progress и оставляет 100%
 только для проверенного итогового файла.
 
+В `0.4.1` продолженная попытка инициализирует этот accumulator из durable checkpoint
+задачи. Первая наблюдаемая позиция каждого возобновлённого компонента становится локальным
+baseline попытки; checkpoint продвигают только последующие byte deltas. Поэтому UI сохраняет
+честный монотонный progress между процессами без изменения SQLite schema и без двойного
+учёта bytes из совместимых partial-файлов.
+
 ## 8. Process supervisor
 
 До полезной работы attempt получает ownership container: на macOS/Linux — новая

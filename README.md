@@ -12,7 +12,8 @@ Deno for current YouTube support.
 
 - Persistent queue with concurrent downloads and a global speed limit.
 - Truthful overall progress across video, audio, and merging, with the current stage,
-  speed, ETA, downloaded size, and total size.
+  speed, ETA, downloaded size, and total size. Resume keeps the last confirmed progress
+  visible while the downloader reconnects to its partial file.
 - Selection from the video formats actually available at the source; maximum quality
   is the default.
 - Start, Pause, Stop, Retry, Remove, Copy URL, and open a verified completed file in

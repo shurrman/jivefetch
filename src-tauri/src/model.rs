@@ -136,6 +136,10 @@ pub struct AttemptReservation {
     pub attempt_id: String,
     pub url: String,
     pub format_selector: Option<String>,
+    pub checkpoint_progress: f64,
+    pub checkpoint_downloaded_bytes: i64,
+    pub checkpoint_total_bytes: Option<i64>,
+    pub is_resume: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
