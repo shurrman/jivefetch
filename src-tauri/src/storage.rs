@@ -10,7 +10,15 @@ use crate::{
     model::{AppSettings, AttemptReservation, ControlIntent, QueueTask, DEFAULT_CONCURRENCY},
 };
 
-const SCHEMA_VERSION: i64 = 6;
+const SCHEMA_VERSION: i64 = 7;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemovalTarget {
+    pub output_path: Option<String>,
+    pub artifact_key: Option<String>,
+    pub artifact_root: Option<String>,
+    pub output_path_shared: bool,
+}
 
 pub struct ActionOutcome {
     pub task: QueueTask,
@@ -228,9 +236,9 @@ pub fn insert_task_with_format(
     let id = random_id(connection)?;
     connection.execute(
         "INSERT INTO tasks
-             (id, url, state, revision, created_at, updated_at, format_selector)
-             VALUES (?1, ?2, 'queued', 0, ?3, ?3, ?4)",
-        params![id, url, timestamp, format_selector],
+             (id, url, state, revision, created_at, updated_at, format_selector, artifact_key)
+             VALUES (?1, ?2, 'queued', 0, ?3, ?3, ?4, ?1)",
+        params![&id, url, timestamp, format_selector],
     )?;
     load_task(connection, &id)
 }
@@ -294,6 +302,49 @@ pub fn remove_task(
     }
 }
 
+pub fn removal_target(
+    connection: &Connection,
+    task_id: &str,
+    expected_revision: i64,
+) -> Result<RemovalTarget, StorageError> {
+    let task = load_task(connection, task_id)?;
+    if task.revision != expected_revision {
+        return Err(StorageError::RevisionConflict);
+    }
+    if !matches!(
+        task.state.as_str(),
+        "paused" | "stopped" | "completed" | "failed" | "interrupted"
+    ) {
+        return Err(StorageError::StopBeforeRemove);
+    }
+    let (artifact_key, artifact_root) = connection.query_row(
+        "SELECT artifact_key, artifact_root FROM tasks WHERE id = ?1",
+        [task_id],
+        |row| {
+            Ok((
+                row.get::<_, Option<String>>(0)?,
+                row.get::<_, Option<String>>(1)?,
+            ))
+        },
+    )?;
+    let output_path_shared = match task.output_path.as_deref() {
+        Some(output_path) => connection.query_row(
+            "SELECT EXISTS(
+                SELECT 1 FROM tasks WHERE id != ?1 AND output_path = ?2
+            )",
+            params![task_id, output_path],
+            |row| row.get(0),
+        )?,
+        None => false,
+    };
+    Ok(RemovalTarget {
+        output_path: task.output_path,
+        artifact_key,
+        artifact_root,
+        output_path_shared,
+    })
+}
+
 pub fn reserve_next_attempt(
     connection: &mut Connection,
 ) -> Result<Option<AttemptReservation>, StorageError> {
@@ -302,7 +353,7 @@ pub fn reserve_next_attempt(
     let candidate = transaction
         .query_row(
             "SELECT id, url, format_selector, progress, downloaded_bytes,
-                    total_bytes, attempt_count
+                    total_bytes, attempt_count, artifact_key, artifact_root
              FROM tasks WHERE state = 'queued'
              ORDER BY created_at ASC, id ASC LIMIT 1",
             [],
@@ -315,6 +366,8 @@ pub fn reserve_next_attempt(
                     row.get::<_, i64>(4)?,
                     row.get::<_, Option<i64>>(5)?,
                     row.get::<_, i64>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, Option<String>>(8)?,
                 ))
             },
         )
@@ -327,20 +380,33 @@ pub fn reserve_next_attempt(
         checkpoint_downloaded_bytes,
         checkpoint_total_bytes,
         attempt_count,
+        artifact_key,
+        artifact_root,
     )) = candidate
     else {
         return Ok(None);
     };
     let is_resume = attempt_count > 0;
     let download_stage = is_resume.then_some("resuming");
+    let artifact_root = match (&artifact_key, artifact_root) {
+        (Some(_), None) => transaction
+            .query_row(
+                "SELECT output_directory FROM app_settings WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?,
+        (_, artifact_root) => artifact_root,
+    };
     let attempt_id = random_id(&transaction)?;
     let changed = transaction.execute(
         "UPDATE tasks SET state = 'starting', revision = revision + 1,
                     updated_at = ?1, speed = NULL, eta = NULL,
-                    download_stage = ?2, output_path = NULL, error_code = NULL,
+                    download_stage = ?2, artifact_root = ?3,
+                    output_path = NULL, error_code = NULL,
                     attempt_count = attempt_count + 1
-             WHERE id = ?3 AND state = 'queued'",
-        params![timestamp, download_stage, task_id],
+             WHERE id = ?4 AND state = 'queued'",
+        params![timestamp, download_stage, artifact_root, task_id],
     )?;
     if changed != 1 {
         return Ok(None);
@@ -359,6 +425,8 @@ pub fn reserve_next_attempt(
         checkpoint_downloaded_bytes,
         checkpoint_total_bytes,
         is_resume,
+        artifact_key,
+        artifact_root,
     }))
 }
 
@@ -557,6 +625,9 @@ fn migrate(connection: &Connection) -> Result<(), StorageError> {
         if version < 6 {
             migrate_download_stage(connection)?;
         }
+        if version < 7 {
+            migrate_artifact_key(connection)?;
+        }
         connection.execute_batch(schema_sql())?;
         connection.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     }
@@ -611,6 +682,32 @@ fn migrate_download_stage(connection: &Connection) -> Result<(), StorageError> {
     Ok(())
 }
 
+fn migrate_artifact_key(connection: &Connection) -> Result<(), StorageError> {
+    let has_column: bool = connection.query_row(
+        "SELECT EXISTS(
+                SELECT 1 FROM pragma_table_info('tasks')
+                WHERE name = 'artifact_key'
+            )",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_column {
+        connection.execute("ALTER TABLE tasks ADD COLUMN artifact_key TEXT", [])?;
+    }
+    let has_root_column: bool = connection.query_row(
+        "SELECT EXISTS(
+                SELECT 1 FROM pragma_table_info('tasks')
+                WHERE name = 'artifact_root'
+            )",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_root_column {
+        connection.execute("ALTER TABLE tasks ADD COLUMN artifact_root TEXT", [])?;
+    }
+    Ok(())
+}
+
 fn migrate_legacy_tasks(connection: &Connection) -> Result<(), StorageError> {
     connection.execute_batch(&format!(
         "BEGIN IMMEDIATE;
@@ -651,7 +748,9 @@ fn schema_sql() -> &'static str {
         error_code TEXT,
         attempt_count INTEGER NOT NULL DEFAULT 0,
         format_selector TEXT,
-        download_stage TEXT
+        download_stage TEXT,
+        artifact_key TEXT,
+        artifact_root TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_tasks_dispatch
         ON tasks(state, created_at ASC, id ASC);
@@ -796,7 +895,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_v4_queue_to_v6_and_reserves_the_selected_format() {
+    fn migrates_v4_queue_to_v7_and_reserves_the_selected_format() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("queue.sqlite3");
         {
@@ -826,6 +925,9 @@ mod tests {
                         browser_for_cookies TEXT,
                         output_directory TEXT NOT NULL
                      );
+                     INSERT INTO tasks
+                        (id, url, state, revision, created_at, updated_at)
+                     VALUES ('legacy', 'https://example.com/legacy', 'stopped', 0, 1, 1);
                      PRAGMA user_version = 4;",
                 )
                 .unwrap();
@@ -840,6 +942,7 @@ mod tests {
         .unwrap();
         let reservation = reserve_next_attempt(&mut connection).unwrap().unwrap();
         assert_eq!(reservation.task_id, task.id);
+        assert_eq!(reservation.artifact_key.as_deref(), Some(task.id.as_str()));
         assert_eq!(
             reservation.format_selector.as_deref(),
             Some("137+bestaudio/137/best")
@@ -853,7 +956,17 @@ mod tests {
         let version: i64 = connection
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 6);
+        assert_eq!(version, 7);
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT artifact_key FROM tasks WHERE id = 'legacy'",
+                    [],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .unwrap(),
+            None
+        );
     }
 
     #[test]

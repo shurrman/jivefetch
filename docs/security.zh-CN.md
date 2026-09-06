@@ -48,7 +48,9 @@ browser profile、raw args/env 或媒体文件。
 ## 6. 文件系统边界
 - Canonical destination 与 sanitized template；拒绝 traversal、device name、ADS、control
   character 和 symlink escape；collision policy 必须明确。
-- Remove-with-files 只能删除 tracked canonical artifact，不能删除目录或展开 glob。
+- Remove-with-files 只能删除 tracked canonical final file 与准确的 task-keyed partial
+  workspace；绝不删除 destination root、不跟随 unsafe symlink、也不展开 glob。
+  Shared final path 会被保留；边界检查失败时队列记录仍存在。
 - “打开”只从 webview 接收 task ID；Rust 重新读取记录路径，在所选目录内 canonicalize，
   要求它是非空普通文件，然后才交给操作系统默认应用。
 

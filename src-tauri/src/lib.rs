@@ -3,6 +3,7 @@ use std::{fs, path::PathBuf};
 use tauri::{Manager, State};
 use url::Url;
 
+pub mod artifacts;
 pub mod diagnostics;
 pub mod engine;
 pub mod error;
@@ -115,14 +116,19 @@ fn task_action(
 }
 
 #[tauri::command]
-fn remove_task(
+async fn remove_task(
     task_id: String,
     expected_revision: i64,
+    delete_files: bool,
     runtime: State<'_, SchedulerRuntime>,
 ) -> Result<(), String> {
-    runtime
-        .remove_task(&task_id, expected_revision)
-        .map_err(error_code)
+    let runtime = runtime.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        runtime.remove_task(&task_id, expected_revision, delete_files)
+    })
+    .await
+    .map_err(|_| error::UserErrorCode::Scheduler.as_str().to_string())?
+    .map_err(error_code)
 }
 
 #[tauri::command]

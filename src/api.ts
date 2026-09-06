@@ -34,10 +34,11 @@ export function actOnTask(task: QueueTask, action: TaskAction): Promise<QueueTas
   });
 }
 
-export function removeTask(task: QueueTask): Promise<void> {
+export function removeTask(task: QueueTask, deleteFiles: boolean): Promise<void> {
   return invoke<void>("remove_task", {
     taskId: task.id,
     expectedRevision: task.revision,
+    deleteFiles,
   });
 }
 

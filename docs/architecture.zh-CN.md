@@ -80,6 +80,12 @@ SQLite 启用 foreign keys、WAL、busy timeout、migrations 和明确 durabilit
 和绝对输出目录。Migration 默认使用两个槽位、不限速、不使用浏览器 Cookie，以及系统
 Downloads 下的 `JiveFetch` 目录。
 
+Schema version 7 为每个新任务分配内部 artifact key。`yt-dlp` 将可继续临时数据保存在
+`.jivefetch-partials/<artifact-key>`，并把普通名称的 final file 移到所选 destination。
+Remove-with-files 在 Rust 中解析 stored final path 与 task workspace；若其他任务引用同一
+final file 则予以保留，并且只有 filesystem 校验与清理成功后才删除队列记录。迁移的
+legacy task 保持 null key，避免改变现有 output template 与 resumability。
+
 ## 6. Scheduler
 
 Scheduler 是 dispatch/task state 的唯一权威，通过 channel 接收命令和进程事件，

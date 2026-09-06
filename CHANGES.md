@@ -6,6 +6,32 @@ This file records validated project-level changes and before/after metrics.
 
 ## Unreleased
 
+## 0.4.2 - 2026-09-06
+
+### Added
+
+- Remove now opens a localized native Yes/No question asking whether associated files
+  should also be deleted from disk. No keeps files and removes only the queue item; Yes
+  deletes the verified final output and JiveFetch-managed partial workspace.
+- New tasks receive an internal artifact key and keep resumable temporary files in an
+  exact task-owned directory without changing the user-facing final filename.
+
+### Safety
+
+- File paths are resolved in Rust from the task ID and expected revision; the webview
+  cannot supply a deletion path. Canonical checks reject output escapes and symlinks.
+- A final file referenced by another task is retained. Any unsafe or failed cleanup keeps
+  the queue item visible, including after restart.
+- Migrated pre-`0.4.2` tasks retain their legacy download layout; their recorded final
+  output can be deleted, but unknown legacy partials are never guessed by filename.
+
+### Metrics
+
+- SQLite schema: version 6 to 7 with a tested in-place nullable `artifact_key` migration.
+- Regular Rust suite: 28 to 34 tests, plus the opt-in real-engine loopback smoke.
+- Remove behavior: 1 immediate queue-only action to 2 explicit keep/delete-files outcomes
+  in each of 3 application languages.
+
 ## 0.4.1 - 2026-09-06
 
 ### Fixed

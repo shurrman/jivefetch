@@ -51,8 +51,14 @@ Commit intent, graceful interrupt, owned-tree termination при deadline,
 
 ### Remove
 
-Сначала stable/no-process, затем tombstone. Delete files — отдельный previewed
-  выбор только tracked canonical paths, без recursive destination deletion.
+Сначала требуется stable/no-process. В `0.4.2` нативный диалог отдельно спрашивает,
+удалять ли файлы. «Нет» удаляет только задачу из очереди; «Да» удаляет проверенный
+итоговый файл и app-owned partial workspace. Webview не передаёт путь: Rust получает
+задачу по ID/revision и разрешает только точный canonical final path и task-keyed каталог
+внутри выбранной destination. Общий final file, на который ссылается другая задача,
+сохраняется. При ошибке или unsafe path задача остаётся видимой. У задач, перенесённых
+из версий до `0.4.2`, нет task-keyed workspace, поэтому безопасно удаляется только
+записанный final path; legacy partials не угадываются по похожему имени.
 
 Команды идемпотентны и проверяют revision. Illegal transition отклоняется backend.
 

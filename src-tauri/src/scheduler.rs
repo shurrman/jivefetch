@@ -11,6 +11,7 @@ use std::{
 };
 
 use crate::{
+    artifacts,
     engine::{
         parse_engine_line, verified_output_file, BinaryDiscovery, EngineEvent, EngineExecutor,
         EngineFailureClassifier, YtDlpExecutor,
@@ -197,11 +198,33 @@ impl SchedulerRuntime {
         Ok(task)
     }
 
-    pub fn remove_task(&self, task_id: &str, expected_revision: i64) -> Result<(), SchedulerError> {
-        self.with_database(|connection| {
-            storage::remove_task(connection, task_id, expected_revision)
-        })?;
-        tracing::info!(task_id, "task removed");
+    pub fn remove_task(
+        &self,
+        task_id: &str,
+        expected_revision: i64,
+        delete_files: bool,
+    ) -> Result<(), SchedulerError> {
+        let configured_output_directory = PathBuf::from(self.settings()?.output_directory);
+        let _writer = self
+            .inner
+            .database_writer
+            .lock()
+            .map_err(|_| SchedulerError::StatePoisoned)?;
+        let connection = storage::open_database(&self.inner.database_path)?;
+        let target = storage::removal_target(&connection, task_id, expected_revision)?;
+        let output_directory = target
+            .artifact_root
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or(configured_output_directory);
+        let removed_files = if delete_files {
+            artifacts::remove_task_files(&output_directory, &target)
+                .map_err(SchedulerError::ArtifactDeletion)?
+        } else {
+            0
+        };
+        storage::remove_task(&connection, task_id, expected_revision)?;
+        tracing::info!(task_id, delete_files, removed_files, "task removed");
         Ok(())
     }
 
@@ -342,7 +365,11 @@ fn run_attempt(
             return;
         }
     };
-    let output_directory = PathBuf::from(&settings.output_directory);
+    let output_directory = reservation
+        .artifact_root
+        .as_deref()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(&settings.output_directory));
     let speed_limit = per_attempt_speed_limit(&settings);
     let browser_for_cookies = match settings.browser_cookie_source() {
         Ok(source) => source,
@@ -366,6 +393,7 @@ fn run_attempt(
         speed_limit,
         browser_for_cookies,
         reservation.format_selector.as_deref(),
+        reservation.artifact_key.as_deref(),
     ) {
         Ok(plan) => plan,
         Err(error) => {
@@ -805,6 +833,7 @@ mod tests {
             _speed_limit_bytes_per_second: Option<u64>,
             _browser_for_cookies: Option<BrowserCookieSource>,
             _format_selector: Option<&str>,
+            _artifact_key: Option<&str>,
         ) -> Result<ExecutionPlan, EngineError> {
             unreachable!("no task is dispatched by this test")
         }
@@ -952,6 +981,8 @@ mod tests {
             checkpoint_downloaded_bytes: 700,
             checkpoint_total_bytes: Some(1_000),
             is_resume: true,
+            artifact_key: None,
+            artifact_root: None,
         };
         let mut progress = ProgressAccumulator::from_reservation(&reservation);
         progress.register_plan(vec![
@@ -1059,5 +1090,111 @@ mod tests {
         fs::remove_file(&media).unwrap();
         assert!(!runtime.list_tasks().unwrap()[0].output_available);
         assert!(runtime.completed_output_path(&task.id).is_err());
+    }
+
+    #[test]
+    fn removes_a_task_with_its_tracked_output_and_owned_partials() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("output");
+        let database = directory.path().join("queue.sqlite3");
+        let runtime = SchedulerRuntime::new_with_dependencies(
+            database.clone(),
+            output.clone(),
+            Arc::new(FakeEngine),
+            Arc::new(FakeSpawner),
+        )
+        .unwrap();
+        let connection = storage::open_database(&database).unwrap();
+        let task = storage::insert_task(&connection, "https://example.com/video").unwrap();
+        let final_file = output.join("video.mp4");
+        fs::write(&final_file, b"complete media").unwrap();
+        connection
+            .execute(
+                "UPDATE tasks SET state = 'completed', output_path = ?1 WHERE id = ?2",
+                rusqlite::params![final_file.to_string_lossy(), task.id],
+            )
+            .unwrap();
+        let partials = crate::artifacts::partial_directory(&output, &task.id).unwrap();
+        fs::create_dir_all(&partials).unwrap();
+        fs::write(partials.join("video.part"), b"partial").unwrap();
+
+        runtime.remove_task(&task.id, task.revision, true).unwrap();
+
+        assert!(!final_file.exists());
+        assert!(!partials.exists());
+        assert!(matches!(
+            storage::load_task(&connection, &task.id),
+            Err(crate::error::StorageError::TaskNotFound)
+        ));
+    }
+
+    #[test]
+    fn removing_only_the_queue_item_keeps_every_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("output");
+        let database = directory.path().join("queue.sqlite3");
+        let runtime = SchedulerRuntime::new_with_dependencies(
+            database.clone(),
+            output.clone(),
+            Arc::new(FakeEngine),
+            Arc::new(FakeSpawner),
+        )
+        .unwrap();
+        let connection = storage::open_database(&database).unwrap();
+        let task = storage::insert_task(&connection, "https://example.com/video").unwrap();
+        let final_file = output.join("video.mp4");
+        fs::write(&final_file, b"complete media").unwrap();
+        connection
+            .execute(
+                "UPDATE tasks SET state = 'completed', output_path = ?1 WHERE id = ?2",
+                rusqlite::params![final_file.to_string_lossy(), task.id],
+            )
+            .unwrap();
+        let partials = crate::artifacts::partial_directory(&output, &task.id).unwrap();
+        fs::create_dir_all(&partials).unwrap();
+        fs::write(partials.join("video.part"), b"partial").unwrap();
+
+        runtime.remove_task(&task.id, task.revision, false).unwrap();
+
+        assert!(final_file.exists());
+        assert!(partials.exists());
+    }
+
+    #[test]
+    fn unsafe_file_deletion_keeps_the_task_recoverable_after_restart() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("output");
+        let database = directory.path().join("queue.sqlite3");
+        let outside = directory.path().join("outside.mp4");
+        fs::write(&outside, b"do not delete").unwrap();
+        let runtime = SchedulerRuntime::new_with_dependencies(
+            database.clone(),
+            output.clone(),
+            Arc::new(FakeEngine),
+            Arc::new(FakeSpawner),
+        )
+        .unwrap();
+        let connection = storage::open_database(&database).unwrap();
+        let task = storage::insert_task(&connection, "https://example.com/video").unwrap();
+        connection
+            .execute(
+                "UPDATE tasks SET state = 'stopped', output_path = ?1 WHERE id = ?2",
+                rusqlite::params![outside.to_string_lossy(), task.id],
+            )
+            .unwrap();
+
+        assert!(runtime.remove_task(&task.id, task.revision, true).is_err());
+        drop(connection);
+        drop(runtime);
+
+        let restarted = SchedulerRuntime::new_with_dependencies(
+            database,
+            output,
+            Arc::new(FakeEngine),
+            Arc::new(FakeSpawner),
+        )
+        .unwrap();
+        assert_eq!(restarted.list_tasks().unwrap().len(), 1);
+        assert!(outside.exists());
     }
 }

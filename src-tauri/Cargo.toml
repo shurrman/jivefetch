@@ -1,6 +1,6 @@
 [package]
 name = "jivefetch"
-version = "0.4.1"
+version = "0.4.2"
 default-run = "jivefetch"
 description = "A local-first media download queue"
 authors = ["JiveFetch contributors"]

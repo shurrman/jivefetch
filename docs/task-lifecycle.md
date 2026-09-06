@@ -95,15 +95,18 @@ attempt record.
 
 ### Remove
 
-Remove first reaches a stable no-process state. It then tombstones the task. The UI
-offers two separate choices:
+Remove first requires a stable no-process state. In `0.4.2`, the native confirmation
+asks whether files should also be deleted:
 
 - remove the task/history but keep files;
-- remove and delete a previewed set of app-owned artifacts.
+- remove and delete the verified final file plus the app-owned partial workspace.
 
-Deletion is limited to canonical artifact paths already attributed to the task. It
-does not recursively delete a user-selected destination directory. Failed deletion
-leaves a visible cleanup error rather than hiding uncertainty.
+Rust resolves the task and expected revision; the webview supplies no path. Deletion is
+limited to the exact canonical final path and the task-keyed partial directory inside the
+configured destination. A final file referenced by another task is retained. Failed or
+unsafe deletion keeps the queue item visible. Existing tasks migrated from versions before
+`0.4.2` have no task-keyed partial workspace, so only their recorded final path can be
+deleted safely; JiveFetch never guesses legacy partials by a similar filename.
 
 ## 6. Durable transition protocol
 

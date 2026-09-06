@@ -140,6 +140,8 @@ pub struct AttemptReservation {
     pub checkpoint_downloaded_bytes: i64,
     pub checkpoint_total_bytes: Option<i64>,
     pub is_resume: bool,
+    pub artifact_key: Option<String>,
+    pub artifact_root: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]

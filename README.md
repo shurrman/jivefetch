@@ -18,6 +18,8 @@ Deno for current YouTube support.
   is the default.
 - Start, Pause, Stop, Retry, Remove, Copy URL, and open a verified completed file in
   its default application.
+- When removing a queue item, choose whether its verified final file and
+  JiveFetch-managed partial files should also be deleted from disk.
 - Optional authentication with cookies from a selected browser.
 - Configurable download folder and system, light, or dark theme.
 - English, Russian, and Simplified Chinese interface; English is the first-run default.

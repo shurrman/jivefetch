@@ -4,6 +4,31 @@
 
 ## 尚未发布
 
+## 0.4.2 - 2026-09-06
+
+### 新增
+
+- “移除”现在会显示本地化原生“是/否”问题，询问是否同时从磁盘删除相关文件。“否”保留
+  文件并只移除队列任务；“是”还会删除已验证最终输出与 JiveFetch 管理的 partial workspace。
+- 新任务会获得内部 artifact key，并把可继续 temp file 放在准确的 task-owned 目录中，
+  不改变用户看到的最终文件名。
+
+### 安全
+
+- Rust 根据 task ID 与 expected revision 解析路径；webview 不能提供删除路径。Canonical
+  检查会拒绝逃出 output root 的路径与 symlink。
+- 若其他任务也引用同一 final file，则保留该文件。路径不安全或清理失败时任务继续可见，
+  restart 后也如此。
+- 从 `0.4.2` 之前版本迁移的任务保留 legacy layout：可以删除已记录 final output，
+  但绝不会按相似文件名猜测未知 legacy partial。
+
+### 指标
+
+- SQLite schema：从版本 6 升至 7，并测试 nullable `artifact_key` 的 in-place migration。
+- 常规 Rust 测试：从 28 增加到 34 个，另有 opt-in 真实引擎 loopback smoke。
+- Remove 行为：从 1 个立即 queue-only 操作变为 2 个明确的 keep/delete-files 结果，
+  并覆盖 3 种应用语言。
+
 ## 0.4.1 - 2026-09-06
 
 ### 修复

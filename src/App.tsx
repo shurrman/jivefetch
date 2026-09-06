@@ -1,4 +1,4 @@
-import { open } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
 import {
   type FormEvent,
   useCallback,
@@ -61,6 +61,7 @@ const backendErrorKeys: Record<string, TranslationKey> = {
   permissionDenied: "permissionDenied",
   outputMissing: "outputMissing",
   openOutputFailed: "openOutputFailed",
+  artifactDeleteFailed: "artifactDeleteFailed",
   processSupervisorError: "processSupervisorError",
   schedulerError: "schedulerError",
   outputDirectoryError: "outputDirectoryError",
@@ -333,7 +334,13 @@ export default function App() {
   const remove = async (task: QueueTask) => {
     setError(null);
     try {
-      await removeTask(task);
+      const deleteFiles = await ask(t("deleteFilesQuestion"), {
+        title: t("removeDownloadTitle"),
+        kind: "warning",
+        okLabel: t("yesDeleteFiles"),
+        cancelLabel: t("noKeepFiles"),
+      });
+      await removeTask(task, deleteFiles);
       setTasks((current) => current.filter((item) => item.id !== task.id));
     } catch (reason) {
       setError(errorKeyForReason(reason));

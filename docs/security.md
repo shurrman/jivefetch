@@ -112,9 +112,10 @@ Before creating or deleting a path:
 4. choose an explicit collision policy;
 5. track every created artifact by task and attempt.
 
-Remove-with-files deletes only tracked canonical files. It never recursively deletes
-the destination root, follows an untrusted symlink outside the root, or expands an
-unresolved glob.
+Remove-with-files deletes only the tracked canonical final file and the exact task-keyed
+partial workspace. It never recursively deletes the destination root, follows an
+untrusted symlink outside the root, or expands an unresolved glob. Shared final paths are
+retained; a failed boundary check leaves the queue record available for retry.
 
 Opening a completed download follows the same boundary: the webview sends only a task
 ID, Rust reloads the recorded output, canonicalizes it inside the configured destination,

@@ -51,8 +51,12 @@ startup old transient -> interrupted -> reconcile -> paused/queued/failed/comple
 
 ### Remove
 
-先达到稳定无进程状态，再 tombstone；删除文件是另一个有预览的明确操作，
-  只能作用于 tracked canonical path，不能递归删除 destination。
+首先必须达到稳定且无进程的状态。`0.4.2` 的原生对话框会另行询问是否删除文件：
+“否”只移除队列任务；“是”还会删除已验证最终文件和 app-owned partial workspace。
+Webview 不传路径；Rust 根据 task ID/revision 解析任务，只允许删除所选 destination 内
+准确的 canonical final path 与 task-keyed 目录。若其他任务也引用同一 final file，
+则保留该文件；删除失败或路径不安全时任务仍保持可见。`0.4.2` 之前迁移的任务没有
+task-keyed workspace，因此只能安全删除已记录 final path，不会按相似文件名猜测 legacy partial。
 
 所有命令幂等并检查 revision；非法 transition 由 backend 拒绝。
 

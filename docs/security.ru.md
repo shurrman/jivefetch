@@ -49,7 +49,9 @@ Cookies, passwords, tokens, auth headers, signed query values и decrypted temp 
 ## 6. Граница filesystem
 - Canonical destination, sanitized template, запрет traversal/device names/ADS/control
   chars и symlink escape; explicit collision policy.
-- Remove-with-files удаляет только tracked canonical artifacts, не directory/glob.
+- Remove-with-files удаляет только tracked canonical final file и точный task-keyed
+  partial workspace; не удаляет destination root, не следует по unsafe symlink и не
+  раскрывает glob. Shared final path сохраняется, а при ошибке запись очереди остаётся.
 - «Открыть» принимает из webview только task ID: Rust заново получает сохранённый путь,
   canonicalize его внутри выбранной папки, требует непустой обычный файл и только затем
   передаёт его приложению ОС по умолчанию.

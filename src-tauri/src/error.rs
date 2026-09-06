@@ -34,6 +34,7 @@ pub enum UserErrorCode {
     PermissionDenied,
     OutputMissing,
     OpenOutputFailed,
+    ArtifactDeleteFailed,
     ProcessSupervisor,
     Scheduler,
     ProbeFailed,
@@ -75,6 +76,7 @@ impl UserErrorCode {
             Self::PermissionDenied => "permissionDenied",
             Self::OutputMissing => "outputMissing",
             Self::OpenOutputFailed => "openOutputFailed",
+            Self::ArtifactDeleteFailed => "artifactDeleteFailed",
             Self::ProcessSupervisor => "processSupervisorError",
             Self::Scheduler => "schedulerError",
             Self::ProbeFailed => "probeFailed",
@@ -172,6 +174,8 @@ pub enum EngineError {
     ProbeOutputInvalid(#[source] serde_json::Error),
     #[error("engine probe returned no usable formats")]
     NoFormats,
+    #[error("task artifact workspace is invalid: {0}")]
+    ArtifactWorkspace(#[source] io::Error),
     #[error("engine reported {0}")]
     Classified(UserErrorCode),
 }
@@ -186,6 +190,7 @@ impl UserFacingError for EngineError {
             Self::ProbeTimedOut => UserErrorCode::ProbeTimedOut,
             Self::ProbeOutputInvalid(_) => UserErrorCode::ProbeOutputInvalid,
             Self::NoFormats => UserErrorCode::NoFormats,
+            Self::ArtifactWorkspace(_) => UserErrorCode::Storage,
             Self::Classified(code) => *code,
         }
     }
@@ -203,6 +208,8 @@ pub enum SchedulerError {
     StatePoisoned,
     #[error("output directory could not be created: {0}")]
     OutputDirectory(#[source] io::Error),
+    #[error("task artifacts could not be deleted safely: {0}")]
+    ArtifactDeletion(#[source] io::Error),
     #[error("blocking scheduler operation could not be joined")]
     JoinFailed,
 }
@@ -215,6 +222,7 @@ impl UserFacingError for SchedulerError {
             Self::Validation(error) => error.user_code(),
             Self::StatePoisoned | Self::JoinFailed => UserErrorCode::Scheduler,
             Self::OutputDirectory(_) => UserErrorCode::OutputDirectory,
+            Self::ArtifactDeletion(_) => UserErrorCode::ArtifactDeleteFailed,
         }
     }
 }

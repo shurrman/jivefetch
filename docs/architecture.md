@@ -122,6 +122,13 @@ speed budget, a non-secret browser-kind reference, and the absolute output direc
 migration defaults to two slots, unlimited speed, no browser cookies, and the platform
 Downloads directory plus `JiveFetch`.
 
+Schema version 7 assigns an internal artifact key to each newly created task. `yt-dlp`
+keeps resumable temporary data under `.jivefetch-partials/<artifact-key>` while moving the
+normal final filename into the configured destination. Remove-with-files resolves the
+stored final path and task workspace in Rust, preserves a final referenced by another task,
+and deletes the queue row only after filesystem validation and cleanup succeed. Migrated
+legacy tasks keep a null key so their existing output template and resumability do not change.
+
 Task state and its corresponding durable event are written in the same transaction.
 Attempt ownership uses a generated `run_id` plus process-native ownership metadata;
 PID alone is informational.

@@ -89,6 +89,13 @@ Attempt ownership использует `run_id` и platform metadata; PID сам
 Migration задаёт два слота, отсутствие лимита/cookies и системную папку Загрузки плюс
 `JiveFetch`.
 
+Schema version 7 назначает каждой новой задаче внутренний artifact key. Resumable temp
+data `yt-dlp` хранится в `.jivefetch-partials/<artifact-key>`, а final file с обычным
+именем перемещается в выбранную destination. Remove-with-files разрешает stored final path
+и task workspace в Rust, сохраняет final file с другой task reference и удаляет строку
+очереди только после успешной проверки/очистки filesystem. У перенесённых legacy tasks
+ключ остаётся null, чтобы не менять существующий output template и resumability.
+
 ## 6. Scheduler
 
 Scheduler — actor-like Rust service и единственный владелец dispatch/state. Он получает

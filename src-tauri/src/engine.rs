@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::{
+    artifacts,
     error::{EngineError, UserErrorCode},
     model::{BrowserCookieSource, EngineInfo, EngineStatus, MediaFormat, MediaProbe},
     process_supervisor::{OutputStream, ProcessLine, SupervisedProcess},
@@ -50,6 +51,7 @@ pub trait EngineExecutor: Send + Sync {
         speed_limit_bytes_per_second: Option<u64>,
         browser_for_cookies: Option<BrowserCookieSource>,
         format_selector: Option<&str>,
+        artifact_key: Option<&str>,
     ) -> Result<ExecutionPlan, EngineError>;
     fn probe_formats(
         &self,
@@ -224,6 +226,7 @@ impl YtDlpExecutor {
         speed_limit_bytes_per_second: Option<u64>,
         browser_for_cookies: Option<BrowserCookieSource>,
         format_selector: Option<&str>,
+        artifact_key: Option<&str>,
     ) -> Result<ExecutionPlan, EngineError> {
         let yt_dlp = self
             .registry
@@ -262,6 +265,14 @@ impl YtDlpExecutor {
             "--continue".to_string(),
             "--no-overwrites".to_string(),
         ];
+        if let Some(artifact_key) = artifact_key {
+            let partial_directory = artifacts::partial_directory(output_directory, artifact_key)
+                .map_err(EngineError::ArtifactWorkspace)?;
+            args.extend([
+                "--paths".to_string(),
+                format!("temp:{}", partial_directory.to_string_lossy()),
+            ]);
+        }
         if let Some(limit) = speed_limit_bytes_per_second {
             args.extend(["--limit-rate".to_string(), limit.to_string()]);
         }
@@ -371,6 +382,7 @@ impl EngineExecutor for YtDlpExecutor {
         speed_limit_bytes_per_second: Option<u64>,
         browser_for_cookies: Option<BrowserCookieSource>,
         format_selector: Option<&str>,
+        artifact_key: Option<&str>,
     ) -> Result<ExecutionPlan, EngineError> {
         self.download_plan(
             url,
@@ -378,6 +390,7 @@ impl EngineExecutor for YtDlpExecutor {
             speed_limit_bytes_per_second,
             browser_for_cookies,
             format_selector,
+            artifact_key,
         )
     }
 
@@ -861,6 +874,7 @@ mod tests {
                 Some(524_288),
                 Some(BrowserCookieSource::Firefox),
                 None,
+                Some("0123456789abcdef0123456789abcdef"),
             )
             .unwrap();
         assert!(plan
@@ -872,6 +886,11 @@ mod tests {
             .windows(2)
             .any(|args| args == ["--cookies-from-browser", "firefox"]));
         assert!(plan.args.iter().any(|argument| argument == "--progress"));
+        assert!(plan.args.windows(2).any(|args| {
+            args[0] == "--paths"
+                && args[1].contains(".jivefetch-partials")
+                && args[1].ends_with("0123456789abcdef0123456789abcdef")
+        }));
         assert!(plan
             .args
             .windows(2)
@@ -898,6 +917,7 @@ mod tests {
                 None,
                 None,
                 Some("137+bestaudio/137/best"),
+                None,
             )
             .unwrap();
         assert!(plan
